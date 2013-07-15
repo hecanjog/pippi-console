@@ -1,0 +1,178 @@
+{
+    "session": "cedar",
+    "bpm": 50.0,
+
+    "generators": {
+        "sh": {
+            "name": "cedarshine",
+            "params": {
+                "device": "T6_pair1",
+                "loop": true
+            }
+        },
+
+        "dr": {
+            "name": "drone",
+            "params": {
+                "device": "T6_pair2",
+                "loop": true
+            }
+        },
+
+        "ll": {
+            "name": "click",
+            "params": {
+                "device": "T6_pair3",
+                "loop": true
+            }
+        },
+
+
+        "cc": {
+            "name": "cedarclick",
+            "params": {
+                "device": "T6_pair3",
+                "loop": true
+            }
+        },
+
+        "in": {
+            "name": "ins",
+            "params": {
+                "device": "T6_pair3",
+                "loop": true
+            }
+        },
+
+        "sp": {
+            "name": "sparkle",
+            "params": {
+                "device": "T6_pair3",
+                "loop": true
+            }
+        }
+    },
+
+    "params": {
+        "o": {
+            "name": "octave",
+            "type": "integer",
+            "accepts": ["integer", "float"]
+        },
+
+        "m": {
+            "name": "multiple",
+            "type": "integer",
+            "accepts": ["integer"]
+        },
+
+        "n": {
+            "name": "note",
+            "type": "note-list",
+            "accepts": ["note-list"]
+        },
+
+        "h": {
+            "name": "harmonic",
+            "type": "integer-list",
+            "accepts": ["integer-list"]
+        },
+
+        "e": {
+            "name": "envelope",
+            "type": "string",
+            "accepts": ["alphanumeric"]
+        },
+
+        "wf": {
+            "name": "waveform",
+            "type": "string",
+            "accepts": ["alphanumeric"]
+        },
+
+        "d": {
+            "name": "drum",
+            "type": "string-list",
+            "accepts": ["string-list"]
+        },
+
+        "r": {
+            "name": "repeats",
+            "type": "integer",
+            "accepts": ["integer"]
+        },
+
+        "i": {
+            "name": "instrument",
+            "type": "string",
+            "accepts": ["alphanumeric"]
+        },
+
+        "s": {
+            "name": "scale",
+            "type": "integer-list",
+            "accepts": ["integer-list"]
+        },
+
+        "sp": {
+            "name": "speed",
+            "type": "float",
+            "accepts": ["float", "integer"]
+        },
+
+        "t": {
+            "name": "length",
+            "type": "frame",
+            "accepts": ["beat", "second", "millisecond"]
+        },
+
+        "w": {
+            "name": "width",
+            "type": "frame",
+            "accepts": ["integer", "beat", "millisecond", "second"]
+        },
+
+        "v": {
+            "name": "volume",
+            "type": "float",
+            "input_range": [0, 100],
+            "output_range": [0.0, 1.0],
+            "accepts": ["integer", "float"]
+        },
+
+        "re": {
+            "name": "regenerate"
+        },
+
+        "qu": {
+            "name": "quantize"
+        },
+
+        "a": {
+            "name": "alias"
+        },
+
+        "tw": {
+            "name": "tweet"
+        },
+
+        "be": {
+            "name": "bend"
+        },
+
+        "bpm": {
+            "name": "bpm",
+            "type": "float",
+            "accepts": ["float", "integer"]
+        }
+
+    },
+
+    "presets": {
+        "c1a": [
+            "dr o:2 n:bb t:40s h:1 wf:sine2pi",
+            "dr o:2 n:eb t:36s h:2 wf:sine2pi"
+            ]
+
+    }
+}

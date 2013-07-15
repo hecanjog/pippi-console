@@ -1,0 +1,242 @@
+{
+    "session": "suite",
+    "bpm": 50.34,
+
+    "generators": {
+        "sl": {
+            "name": "slurp",
+            "params": {
+                "device": "T6_pair1",
+                "loop": true
+            }
+        },
+
+
+        "sh": {
+            "name": "shine",
+            "params": {
+                "device": "T6_pair1",
+                "loop": true
+            }
+        },
+
+        "dr": {
+            "name": "drone",
+            "params": {
+                "device": "T6_pair2",
+                "loop": true
+            }
+        },
+
+        "cl": {
+            "name": "click",
+            "params": {
+                "device": "T6_pair3",
+                "loop": true
+            }
+        },
+
+        "cc": {
+            "name": "cedarclick",
+            "params": {
+                "device": "T6_pair3",
+                "loop": true
+            }
+        },
+
+
+        "in": {
+            "name": "ins",
+            "params": {
+                "device": "T6_pair3",
+                "loop": true
+            }
+        }
+
+    },
+
+    "params": {
+        "o": {
+            "name": "octave",
+            "type": "integer",
+            "accepts": ["integer", "float"]
+        },
+
+        "m": {
+            "name": "multiple",
+            "type": "integer",
+            "accepts": ["integer"]
+        },
+
+        "n": {
+            "name": "note",
+            "type": "note-list",
+            "accepts": ["note-list"]
+        },
+
+        "h": {
+            "name": "harmonic",
+            "type": "integer-list",
+            "accepts": ["integer-list"]
+        },
+
+        "e": {
+            "name": "envelope",
+            "type": "string",
+            "accepts": ["alphanumeric"]
+        },
+
+        "wf": {
+            "name": "waveform",
+            "type": "string",
+            "accepts": ["alphanumeric"]
+        },
+
+        "d": {
+            "name": "drum",
+            "type": "string-list",
+            "accepts": ["string-list"]
+        },
+
+        "r": {
+            "name": "repeats",
+            "type": "integer",
+            "accepts": ["integer"]
+        },
+
+        "i": {
+            "name": "instrument",
+            "type": "string",
+            "accepts": ["alphanumeric"]
+        },
+
+        "s": {
+            "name": "scale",
+            "type": "integer-list",
+            "accepts": ["integer-list"]
+        },
+
+        "sp": {
+            "name": "speed",
+            "type": "float",
+            "accepts": ["float", "integer"]
+        },
+
+        "t": {
+            "name": "length",
+            "type": "frame",
+            "accepts": ["beat", "second", "millisecond"]
+        },
+
+        "w": {
+            "name": "width",
+            "type": "frame",
+            "accepts": ["integer", "beat", "millisecond", "second"]
+        },
+
+        "v": {
+            "name": "volume",
+            "type": "float",
+            "input_range": [0, 100],
+            "output_range": [0.0, 1.0],
+            "accepts": ["integer", "float"]
+        },
+
+        "re": {
+            "name": "regenerate"
+        },
+
+        "qu": {
+            "name": "quantize"
+        },
+
+        "a": {
+            "name": "alias"
+        },
+
+        "tw": {
+            "name": "tweet"
+        },
+
+        "be": {
+            "name": "bend"
+        },
+
+        "bpm": {
+            "name": "bpm",
+            "type": "float",
+            "accepts": ["integer", "float"]
+        }
+    },
+
+    "presets": {
+        "s1aa": [
+            "dr o:2 n:bb t:40s h:1 wf:sine2pi",
+            "dr o:2 n:eb t:36s h:2 wf:sine2pi",
+            "dr o:2 n:eb t:35s h:1 wf:sine2pi a v:6",
+            "dr o:2 n:eb t:25s h:2 wf:sine2pi a v:6"
+            ],
+
+        "s1ba": [
+            "dr o:1 t:25s n:ab h:1.2.3.4.5.6 wf:tri",
+            "dr o:1 t:20s n:ab h:1.2.3.4.5.6 wf:tri",
+            "dr o:1 t:16s n:ab h:1 wf:sine2pi"
+            ],
+
+        "s1bb": [
+            "dr o:1 t:6s n:ab h:1.2.3.4.5.6 wf:vary wii",
+            "dr o:2 t:9s n:ab h:1.2.3.4.5.6 wf:vary wii",
+            "dr o:2 t:7s n:ab h:1.2.3.4.5.6 wf:vary wii",
+            "dr o:3 t:3s n:ab h:1.2.3.4.5.6 wf:vary wii",
+            "dr o:2 t:10s n:ab h:1.2.3.4.5.6 wf:vary",
+            "dr o:2 t:10s n:ab h:1.2.3.4.5.6 wf:tri",
+            "sh o:2 i:c e:sine re t:2s n:ab s:1",
+            "sh o:2 i:c e:sine re t:1.4s n:ab s:1"
+            ],
+
+        "s2aa": [
+            "sh o:2 i:r n:db s:1 e:phasor qu t:b2 r:2",
+            "sh o:2 i:r n:db s:5 e:phasor qu t:b2 r:2"
+            ],
+
+        "s2ab": [
+            "cl w:3 d:h qu r:1",
+            "cl w:3 d:h qu m:1 v:10"
+            ],
+
+        "s2ac": [
+            "sh o:3 i:t e:line v:8 n:db s:8 qu t:b2 r:2",
+            "sh o:2 n:db s:12 qu t:b2 r:2",
+            "sh o:3 i:r n:db v:15 s:1 e:phasor qu t:b1.5 r:3",
+            "cl d:c single qu w:5 m:2"
+            ],
+
+        "s2acc": [
+            "sh o:3 n:db s:10 qu r:1 t:b2 w:ms50 e:phasor v:8 i:r",
+            "sh o:1 n:db s:8 qu r:1 t:b2 w:b1 v:20 i:r"
+            ],
+
+        "s2ad": [
+            "sh o:3 n:db s:15 qu r:1 t:b2 w:ms50 e:phasor v:5 i:t",
+            "sh o:3 n:db s:8 qu r:1 t:b2 w:ms50 e:phasor v:8 i:t",
+            "cl d:c w:5 qu v:30",
+            "cl d:s w:5 qu glitch m:4 re v:25",
+            "cl d:s w:5 qu tweet re v:25",
+            "dr o:1 t:14s n:db.ab wf:impulse h:1.2.3.4",
+            "dr o:1 t:24s n:db.ab wf:impulse h:1.2",
+            "dr o:2 t:18s n:ab wf:impulse h:1"
+            ],
+
+        "s2ae": [
+            "cl d:c.s v:30 m:4 re roll qu",
+            "cl d:k v:30 re qu",
+            "cl d:h qu m:4 v:10",
+            "sh i:t n:db s:1 t:b1 r:1 qu o:2",
+            "sh i:t n:db s:8 e:phasor t:b2 r:2 qu o:2",
+            "sh i:t n:db s:8 v:10 e:phasor t:b4 r:4 qu o:3",
+            "sh i:r n:db s:8 v:30 e:phasor t:b4 r:1 qu o:3",
+            "sh i:t n:db s:1 e:phasor t:b3 r:3 qu o:1"
+            ]
+
+    }
+}
