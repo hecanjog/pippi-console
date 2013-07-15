@@ -1,10 +1,4 @@
-
-## 'Realtime' performance layer 
 (linux-only - requires ALSA)
-
-### Install with pip: 
-
-    pip install pippi[realtime]
 
 The pippi console:
 
