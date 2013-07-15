@@ -1,0 +1,427 @@
+#!/usr/bin/env python2.7
+
+import cmd
+import os
+import sys
+import re
+import time
+import subprocess
+
+from pippi import dsp
+from pippi import tune 
+
+from pippic import param
+from pippic import rt
+
+import multiprocessing as mp
+from termcolor import colored
+from os.path import expanduser
+import ConfigParser
+
+class Pippi(cmd.Cmd):
+    """ Pippi Console 
+    """
+
+    dsp.log('starting', 'w')
+    prompt = 'pippi: '
+    intro = 'Pippi Console'
+
+    cc = {} 
+    vid = 0
+
+    def __init__(self):
+        cmd.Cmd.__init__(self)
+
+        # Global pippi config settings including
+        # optional global param defaults
+        userhome = expanduser('~')
+
+        self.config = ConfigParser.SafeConfigParser(allow_no_value=True)
+
+        try:
+            with open(userhome + '/.pippi', 'r+b') as configfile:
+                self.config.readfp(configfile)
+
+        except IOError:
+            # Create a stub config file if none is found
+            with open(userhome + '/.pippi', 'wb') as configfile:
+                self.config.add_section('global')
+                self.config.set('global', 'bpm', '65.0')
+                self.config.add_section('orcpaths')
+                self.config.set('orcpaths', userhome + '/orc/')
+                self.config.set('orcpaths', os.getcwd() + '/orc/')
+                self.config.write(configfile)
+
+
+        self.bpm = self.config.get('global', 'bpm')
+        self.root = 27.5 # TODO add to config
+
+        # Update sys.path to include any generator orc/ directories
+        # listed in our config
+        sys.path += [ orcpath[0] for orcpath in self.config.items('orcpaths') ]
+
+        # A set of shared namespaces to enable data 
+        # passing between processes.
+        self.server = mp.Manager()
+        self.buffers = self.server.Namespace()
+        self.params = self.server.Namespace()
+        self.groups = {}
+
+        # TODO probably some sort of hash function 
+        # would be better than this integer-as-id hack.
+        self.voice_id = str(0)
+
+        self.tick = mp.Event()
+
+        self.grid = mp.Process(name='grid', target=rt.grid, args=(self.tick, self.bpm))
+        self.grid.start()
+
+        self.cc = []
+
+        # Load all available generators into a dict 
+        self.generators = {}
+
+        # Look for generators in all available orc directories 
+        orcpaths = [ orcpath[0] for orcpath in self.config.items('orcpaths') ]
+
+        for orcpath in orcpaths:
+            try:
+                gens = os.listdir(orcpath)
+
+                pattern = re.compile(r'(^[a-zA-Z]+)(\.py$)')
+
+                for gen in gens:
+                    filename = pattern.search(gen)
+
+                    if filename:
+                        filename = filename.group(1)
+
+                        # import
+                        gen = __import__(filename)
+                    
+                        # Fetch the shortname or just use the first two letters of the filename
+                        shortname = gen.shortname if hasattr(gen, 'shortname') else filename[0:2]
+
+                        self.generators[shortname] = gen
+
+                print 'Loaded', len(gens), 'generators from', orcpath
+
+            except OSError:
+                print 'No generators found in ' + orcpath
+
+        print
+
+    def do_bpm(self, cmd):
+        try:
+            # Update self.bpm
+            # Restart grid process with new bpm
+            # Recursive update of all running voices by default
+                # Only update master if 'master' param passed
+            self.grid.terminate()
+            self.bpm = float(cmd)
+            self.grid = mp.Process(name='grid', target=rt.grid, args=(self.tick, self.bpm))
+            self.grid.start()
+
+            active = mp.active_children()
+
+            for voice in active:
+                if hasattr(self.params, voice.name):
+                    params = getattr(self.params, voice.name)
+
+                    self.update_param(voice.name, 'bpm', self.bpm)
+                    self.update_param(voice.name, 'once', True)
+ 
+        except Exception, e:
+            dsp.log(e)
+
+    def do_root(self, cmd):
+        try:
+            self.root = float(cmd)
+
+            active = mp.active_children()
+
+            for voice in active:
+                if hasattr(self.params, voice.name):
+                    params = getattr(self.params, voice.name)
+                    self.update_param(voice.name, 'root', self.root)
+                    self.update_param(voice.name, 'once', True)
+
+        except Exception, e:
+            dsp.log(e)
+
+    def do_u(self, cmd):
+        try:
+            cmds = cmd.split(' ')
+            voice_id = cmds.pop(0).strip()
+
+            voice_list = re.match(r'^\d+(\.\d+)+$', voice_id)
+
+            if voice_list is not None:
+                voice_list = voice_id.split('.')
+                for voice_id in voice_list:
+                    self.update_param(voice_id, cmds=cmds)
+                    self.update_param(voice_id, 'once', True)
+            else:
+                self.update_param(voice_id, cmds=cmds)
+                self.update_param(voice_id, 'once', True)
+        except Exception, e:
+            dsp.log(e)
+
+    def do_uu(self, cmd):
+        try:
+            gen = 'all'
+
+            cmds = cmd.split(' ')
+            if cmds[0] != '' and cmds[0] != 'all':
+                gen = cmds.pop(0)
+
+            active = mp.active_children()
+
+            for voice in active:
+                if hasattr(self.params, voice.name):
+                    params = getattr(self.params, voice.name)
+
+                    if params.get('generator') in gen or gen == 'all':
+                        self.update_param(voice.name, cmds=cmds)
+
+                    # Force a single regeneration on param update
+                    self.update_param(voice.name, 'once', True)
+
+        except Exception, e:
+            dsp.log(e)
+
+    def do_ss(self, cmd):
+        try:
+            cmds = cmd.strip().split(' ')
+            gen = cmds.pop(0)
+            gen = gen if len(gen) > 0 else 'all'
+            self.update_params(gen=gen, param='loop', value=False)
+        except Exception, e:
+            dsp.log(e)
+
+    def do_s(self, cmd):
+        try:
+            cmds = cmd.split(' ')
+
+            for cmd in cmds:
+                voice_id = cmd.strip() 
+                self.update_param(voice_id, 'loop', False)
+        except Exception, e:
+            dsp.log(e)
+
+    def do_vv(self, cmd):
+        try:
+            cmds = cmd.strip().split(' ')
+            gen = cmds.pop(0)
+            self.update_params(gen=gen, param='target_volume', value=float(cmds[0]) / 100.0)
+        except Exception, e:
+            dsp.log(e)
+
+    def do_v(self, cmd):
+        try:
+            cmds = cmd.split(' ')
+            self.update_param(cmds[0], 'target_volume', float(cmds[1]) / 100.0)
+        except Exception, e:
+            dsp.log(e)
+
+    def do_i(self, cmd=[]):
+        active = mp.active_children()
+        dsp.log([ (a.name, a.pid) for a in active])
+        try:
+            voices = []
+            for voice in active:
+                if hasattr(self.params, voice.name):
+                    params = getattr(self.params, voice.name)
+                    voices += [ "%02i %s" % (int(voice.name), self.format_params(params.data)) ]
+
+            voices.sort()
+
+            for voice in voices:
+                print voice
+
+        except Exception, e:
+            dsp.log(e)
+
+    def update_params(self, gen='all', param=None, value=None):
+        active = mp.active_children()
+
+        try:
+            for voice in active:
+                if hasattr(self.params, voice.name):
+                    params = getattr(self.params, voice.name)
+
+                    if params.get('generator') == gen or gen == 'all':
+                        self.update_param(voice.name, param, value)
+
+        except Exception, e:
+            dsp.log(e)
+
+    def update_param(self, voice_id, param=None, value=None, cmds=None):
+        try:
+            if cmds is not None:
+                for cmd in cmds:
+                    cmd = cmd.split(':')
+                    value = cmd[1] if len(cmd) == 2 else True
+
+                    # Some special values get replaced:
+                    # F becomes False
+                    if value == 'F':
+                        value = False
+
+                    self.update_param(voice_id, cmd[0], value)
+
+            elif param is not None and value is not None:
+                if hasattr(self.params, voice_id):
+                    params = getattr(self.params, voice_id)
+                    params.set(param, value)
+                    setattr(self.params, voice_id, params)
+        except Exception, e:
+            dsp.log(e)
+
+
+    def format_params(self, params=[]):
+        # TODO: translate types & better formatting
+        param_string = ''
+        for param in params:
+            #value = params[param]['name'] if param == 'generator' else params[param]
+            value = params[param]
+            if str(param) == 'generator':
+                param_string += colored(str(param)[0:3] + ': ', 'blue')
+                param_string += colored(str(value['value'])[:10].upper(), 'green')
+            else:
+                param_string += colored(str(param)[0:3] + ': ', 'cyan')
+                param_string += colored(str(value['value'])[:10], 'yellow')
+
+            param_string += ' '
+        
+        return param_string
+
+    def do_group(self, cmd):
+        try:
+            cmd = cmd.split('--')
+            group = [ a for a in cmd.pop(0).split(' ') if a != '' ]
+            cmd = cmd[0].strip()
+
+            for voice in range(int(group[0])):
+                self.default(cmd)
+        except Exception, e:
+            dsp.log(e)
+
+    def default(self, cmd):
+        # Safety first!
+        try:
+
+            # Break comma separated commands
+            # into a list of command strings
+            cmds = cmd.strip().split(',')
+
+            # For each command string, unpack and load
+            # into a param.Param instance
+            #
+            # For our purposes, a 'command' refers to text typed at the pippi
+            # console, while 'param' refers to the translatable key-value pairs 
+            # passed to the play method of generator scripts.
+            #
+            # So:
+            #   sh o:3
+            #
+            # Could become:
+            #   { 'generator': 'shine', 'octave': {'value': 3, 'type': 'integer'} }
+            # 
+            # And:
+            #   dr h:1.2.3.4 t:4b wf:tri n:eb.g
+            # 
+            # Could become:
+            #   {
+            #       'generator': 'drone',
+            #       'harmonics': {'value': '1.2.3.4', 'type': 'integer-list'},
+            #       'length': {'value': '4b', 'type': 'frame'},
+            #       'waveform': {'value': 'tri'},
+            #       'notes': {'value': 'eb.g', 'type': 'note-list'}
+            #   }
+            # 
+            # For a complete list of reserved words and built-in types please 
+            # refer to the patterns and type settings in param.py.
+
+            for cmd in cmds:
+                # Split space-separated params into a list
+                commands = cmd.strip().split()
+
+                # Split colon-separated key:value param pairs
+                # into lists.
+                commands = [ command.split(':') for command in commands ]
+
+                try:
+                    generator = self.generators.get(commands[0][0], False)
+                    params = param.Param(commands) 
+
+                    if 'root' not in params.data:
+                        params.data['root'] = { 'value': self.root, 'name': 'root' }
+
+                    if 'bpm' not in params.data:
+                        params.data['bpm'] = { 'value': self.bpm, 'name': 'bpm' }
+
+                    if 'loop' not in params.data:
+                        if hasattr(generator, 'loop'):
+                            params.data['loop'] = { 'value': generator.loop, 'name': 'loop' }
+                        else:
+                            params.data['loop'] = { 'value': True, 'name': 'loop' }
+
+                    if 'device' not in params.data:
+                        if hasattr(generator, 'device'):
+                            params.data['device'] = { 'value': generator.device, 'name': 'device' }
+
+                    if generator.shortname in params.data:
+                        params.data.pop(generator.shortname)
+                        params.data['generator'] = { 'value': generator.name, 'name': 'generator' }
+
+                    # Increment voice id and print voice information. TODO: pretty print & abstract
+                    self.voice_id = str(int(self.voice_id) + 1)
+                    print self.voice_id, self.format_params(params.data)
+
+                    # Allocate a new shared voice dict to store generator params, and audio
+                    # data for the render process. (Render processes are spawned on demand by 
+                    # the voice's playback process.)
+
+                    setattr(self.buffers, self.voice_id, '')
+                    setattr(self.params, self.voice_id, params)
+
+                    # Import the generator as a python module and spawn a playback 
+                    # process from rt.out, passing in the generator's play method 
+                    # which will be run from within a render process - spawned on demand 
+                    # by the voice's playback process. Sheesh.
+
+                    playback_process = mp.Process(name=self.voice_id, target=rt.out, args=(generator, self.buffers, self.params, self.tick))
+                    playback_process.start()
+
+
+                except TypeError, e:
+                    dsp.log('invalid generator', e)
+
+        except Exception, e:
+            dsp.log(e)
+
+
+    def do_EOF(self, line):
+        return True
+
+    def postloop(self):
+        pass
+
+    def shutdown(self):
+        active = mp.active_children()
+        for p in active:
+            p.terminate()
+            p.join()
+
+if __name__ == '__main__':
+        # Create console
+        console = Pippi()
+
+        # Start looping command prompt
+        try:
+            console.cmdloop()
+        except KeyboardInterrupt:
+            console.shutdown()
+            print 'Shutting down'
+
