@@ -1,6 +1,6 @@
 from setuptools import setup
 
-setup(name='pippi',
+setup(name='pippic',
         version='0.3.0',
         description='A command interface for the pippi computer music system',
         url='http://hecanjog.github.com/pippi-console',

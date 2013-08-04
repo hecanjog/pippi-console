@@ -1,8 +1,8 @@
 import os
 import time
-from pippi import param
 from pippi import dsp
-from pippi import osc 
+from pippic import param
+from pippic import osc 
 import multiprocessing as mp
 import alsaaudio
 

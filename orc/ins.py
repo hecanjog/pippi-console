@@ -1,5 +1,5 @@
 from pippi import dsp
-from pippi import rt
+from pippic import rt
 from pippi import tune
 
 shortname       = 'in'
