@@ -11,7 +11,7 @@ loop        = True
 def play(params=None):
     params = params or {}
 
-    length = params.get('length', dsp.stf(20))
+    length = params.get('length', dsp.stf(dsp.rand(5, 12)))
     volume = params.get('volume', 20.0) 
     volume = volume / 100.0 # TODO move into param filter
     octave = params.get('octave', 1)

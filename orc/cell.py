@@ -5,7 +5,7 @@ name      = 'cell'
 device    = 'default'
 loop      = True
 
-def play(params={}):
+def play(params):
     length = params.get('length', dsp.stf(3))
 
     def bln(length, low=3000.0, high=7100.0, wform='sine2pi'):

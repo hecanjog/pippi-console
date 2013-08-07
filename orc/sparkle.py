@@ -6,7 +6,7 @@ name        = 'sparkle'
 device      = 'default'
 loop        = True
 
-def play(params={}):
+def play(params):
 
     length    = params.get('length', dsp.stf(20))
     volume    = params.get('volume', 0.3)

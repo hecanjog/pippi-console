@@ -1,0 +1,27 @@
++--------------------------------------------------------------------------------+
+| console interface                    console server                            |
+|--------------------------------------------------------------------------------|+----------+
+| terse syntax for params              shared namespace (dict) for voice params  |           |
+| fire, kill, and alter voices         shared namespace for buffers              |           |
+| view active voices and their params  a couple global params (bpm, root freq)   |+----------v----+
++-----------------------------------------------+----+----+----+----+------------+|timer grid     |
+                                                |    |    |    |    |             |---------------|
+                                                |    |    |    |    |             |ticks at master|
+                                       +--------v----v----v----v----v----------+  |bpm. notifies  |
+                                       | playback processes for voices         |  |synced voices. |
+                                       |---------------------------------------|  +---------------+
+                                       | translates params & manages namespaces|
+    Pippi console overview             | optionally slaved to timer grid       |
+                                       | spawns render process for voice       |
+                                       | handles playback for voice            |
+                                       +------------------+--------------------+
+                                                          |
+                                       +------------------v--------------------+
+                                       | render process for voice              |
+ +--------------------------------+    |---------------------------------------|
+ | generators                     <----+ takes generator module & target buffer|
+ |--------------------------------|    | renders audio and stores in buffer    |
+ | takes expanded param dict      |    +---------------------------------------+
+ | does things to audio w/pippi   |
+ | returns audio string for buffer|
+ +--------------------------------+
