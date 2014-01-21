@@ -2,8 +2,8 @@ from pippi import dsp
 
 shortname       = 'sl'
 name            = 'slurp'
-#device          = 'T6_pair2'
-device      = 'default'
+device          = 'T6_pair1'
+#device      = 'default'
 loop            = True
 
 def play(params={}):

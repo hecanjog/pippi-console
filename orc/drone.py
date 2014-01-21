@@ -4,7 +4,7 @@ import math
 
 shortname   = 'dr'
 name        = 'drone'
-#device      = 'T6_pair3'
+#device      = 'T6_pair2'
 device      = 'default'
 loop        = True
 
@@ -108,3 +108,5 @@ def play(params=None):
 
     #return (dsp.amp(out, volume), {'osc': [ osc_message ]})
     return dsp.amp(out, volume)
+
+

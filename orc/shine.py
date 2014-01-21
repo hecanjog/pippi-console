@@ -3,8 +3,8 @@ from pippi import tune
 
 shortname   = 'sh'
 name        = 'shine'
-#device      = 'T6_pair1'
-device      = 'default'
+device      = 'T6_pair2'
+#device      = 'default'
 loop        = True
 
 # Generator-specific param types (unimplemented)

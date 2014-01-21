@@ -4,6 +4,7 @@ from pippi import tune
 shortname   = 'sp'
 name        = 'sparkle'
 device      = 'default'
+#device      = 'T6_pair1'
 loop        = True
 
 def play(params):

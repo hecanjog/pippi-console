@@ -7,7 +7,7 @@ import multiprocessing as mp
 import alsaaudio
 
 def grid(tick, bpm):
-    os.nice(-19)
+    os.nice(0)
 
     bpm = dsp.mstf(dsp.bpm2ms(bpm))
 
@@ -19,6 +19,7 @@ def grid(tick, bpm):
         count += 1
 
 def render(play, buffers, voice_params, once, uno):
+    os.nice(19)
     current = mp.current_process()
     buffer_type = current.name[0]
     voice_id = current.name[1:]
@@ -44,6 +45,7 @@ def render(play, buffers, voice_params, once, uno):
     setattr(buffers, buffer_id, dsp.split(sound, 500))
 
 def dsp_loop(out, buffer, params, voice_params, voice_id, jack=False):
+    os.nice(0)
     params = getattr(voice_params, voice_id)
 
     target_volume = params.get('target_volume', 1.0)
@@ -82,7 +84,7 @@ def out(generator, buffers, voice_params, tick):
         """
 
     # Give this process a high priority to help prevent unwanted audio glitching
-    os.nice(-19)
+    #os.nice(-19)
 
     voice_id = mp.current_process().name
 

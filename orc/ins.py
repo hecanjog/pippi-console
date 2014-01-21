@@ -4,12 +4,12 @@ from pippi import tune
 
 shortname       = 'in'
 name            = 'ins'
-device          = 'T6_pair1'
+device          = 'T6_pair3'
 #device          = 'default'
 loop            = True
 
 def play(params):
-    length          = params.get('length', dsp.mstf(2000))
+    length          = params.get('length', dsp.mstf(10000))
     buffer_length   = params.get('buffer', dsp.mstf(2000))
     volume          = params.get('volume', 100.0)
     volume          = volume / 100.0
@@ -98,5 +98,6 @@ def play(params):
             #out = dsp.cut(out, 0, startlen)
 
 
+    dsp.write(out, 'foo')
 
     return out

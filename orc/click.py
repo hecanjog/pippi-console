@@ -3,8 +3,8 @@ import math
 
 shortname   = 'cl'
 name        = 'click'
-#device      = 'T6_pair3'
-device      = 'default'
+device      = 'T6_pair3'
+#device      = 'default'
 loop        = True
 
 def play(params):
@@ -210,8 +210,5 @@ def play(params):
         out = dsp.split(out, int(lenbeat * 0.5))
         out = ''.join(dsp.randshuffle(out))
 
-    if pi:
-        return (dsp.amp(out, volume), {'osc': osc_messages })
-    else:
-        return dsp.amp(out, volume)
+    return dsp.amp(out, volume)
 
