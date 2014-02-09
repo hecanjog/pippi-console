@@ -3,8 +3,8 @@ from pippi import tune
 
 shortname   = 'sh'
 name        = 'shine'
-device      = 'T6_pair2'
-#device      = 'default'
+#device      = 'T6_pair2'
+device      = 'default'
 loop        = True
 
 # Generator-specific param types (unimplemented)
@@ -21,7 +21,7 @@ def play(params):
             shine.py [length] [volume]
     """
     length      = params.get('length', dsp.stf(dsp.rand(0.1, 1)))
-    volume      = params.get('volume', 20.0)
+    volume      = params.get('volume', 100.0)
     volume = volume / 100.0 # TODO: move into param filter
     octave      = params.get('octave', 2) + 1 # Add one to compensate for an old error for now
     note        = params.get('note', ['c'])

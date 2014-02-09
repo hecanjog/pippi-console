@@ -8,6 +8,22 @@ class Param:
                 'type': 'integer',
                 'accepts': ['integer', 'float'],
                 },
+            'bi': {
+                'name': 'buffer_index',
+                'type': 'integer',
+                'accepts': ['integer'],
+                },
+            'si': {
+                'name': 'sample_index',
+                'type': 'integer',
+                'accepts': ['integer'],
+                },
+
+            'bt': {
+                'name': 'buffer_length',
+                'type': 'frame',
+                'accepts': ['beat', 'second', 'millisecond', 'integer'],
+                },
             'm': {
                 'name': 'multiple',
                 'type': 'integer',

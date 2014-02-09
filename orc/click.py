@@ -3,8 +3,8 @@ import math
 
 shortname   = 'cl'
 name        = 'click'
-device      = 'T6_pair3'
-#device      = 'default'
+#device      = 'T6_pair3'
+device      = 'default'
 loop        = True
 
 def play(params):
