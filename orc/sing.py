@@ -73,12 +73,12 @@ def play(params):
 
     pitches = tune.fromdegrees(scale, octave=octave, root=note)
 
-    length = dsp.flen(words) * dsp.randint(10, 14)
+    length = dsp.flen(words) * dsp.randint(30, 32)
 
     sings = [ dsp.pine(words, length, pitch) for pitch in pitches ]
     sings = dsp.mix(sings)
 
-    sings = sox("sox %s %s tempo 4.0", sings)
+    sings = sox("sox %s %s tempo 6.0", sings)
 
     out = dsp.pan(sings, dsp.rand())
 

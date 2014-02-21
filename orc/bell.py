@@ -2,8 +2,8 @@ from pippi import dsp
 
 shortname   = 'be'
 name        = 'bell'
-#device      = 'T6_pair2'
-device      = 'default'
+device      = 'T6_pair2'
+#device      = 'default'
 loop        = True
 
 guitar = dsp.read('sounds/bellarp.wav').data

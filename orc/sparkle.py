@@ -76,6 +76,6 @@ def play(params):
             tones += [ snd ]
 
     out = dsp.mix(tones)
-    out = dsp.pan(out, 0)
+    out = dsp.pan(out, dsp.rand())
 
     return dsp.amp(out, volume)

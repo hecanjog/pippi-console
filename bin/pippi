@@ -11,6 +11,7 @@ from pippi import dsp
 from pippi import tune 
 
 from pippic import param
+from pippic import settings
 from pippic import rt
 
 import multiprocessing as mp
@@ -32,33 +33,17 @@ class Pippi(cmd.Cmd):
     def __init__(self):
         cmd.Cmd.__init__(self)
 
-        # Global pippi config settings including
-        # optional global param defaults
-        userhome = expanduser('~')
+        # Load config from file and populate current session
+        self.config = settings.init_session()
 
-        self.config = ConfigParser.SafeConfigParser(allow_no_value=True)
-
-        try:
-            with open(userhome + '/.pippi', 'r+b') as configfile:
-                self.config.readfp(configfile)
-
-        except IOError:
-            # Create a stub config file if none is found
-            with open(userhome + '/.pippi', 'wb') as configfile:
-                self.config.add_section('global')
-                self.config.set('global', 'bpm', '65.0')
-                self.config.add_section('orcpaths')
-                self.config.set('orcpaths', userhome + '/orc/')
-                self.config.set('orcpaths', os.getcwd() + '/orc/')
-                self.config.write(configfile)
-
-
-        self.bpm = self.config.get('global', 'bpm')
-        self.root = 27.5 # TODO add to config
+        self.bpm = self.config.get('bpm')
+        self.root = self.config.get('a0')
 
         # Update sys.path to include any generator orc/ directories
         # listed in our config
-        sys.path += [ orcpath[0] for orcpath in self.config.items('orcpaths') ]
+        #sys.path += [ orcpath[0] for orcpath in self.config.items('orcpaths') ]
+        print self.config['paths']['orc']
+        sys.path += [ self.config['paths']['orc'] ]
 
         # A set of shared namespaces to enable data 
         # passing between processes.
@@ -81,33 +66,29 @@ class Pippi(cmd.Cmd):
         # Load all available generators into a dict 
         self.generators = {}
 
-        # Look for generators in all available orc directories 
-        orcpaths = [ orcpath[0] for orcpath in self.config.items('orcpaths') ]
+        try:
+            gens = os.listdir(self.config['paths']['orc'])
 
-        for orcpath in orcpaths:
-            try:
-                gens = os.listdir(orcpath)
+            pattern = re.compile(r'(^[a-zA-Z]+)(\.py$)')
 
-                pattern = re.compile(r'(^[a-zA-Z]+)(\.py$)')
+            for gen in gens:
+                filename = pattern.search(gen)
 
-                for gen in gens:
-                    filename = pattern.search(gen)
+                if filename:
+                    filename = filename.group(1)
 
-                    if filename:
-                        filename = filename.group(1)
+                    # import
+                    gen = __import__(filename)
+                
+                    # Fetch the shortname or just use the first two letters of the filename
+                    shortname = gen.shortname if hasattr(gen, 'shortname') else filename[0:2]
 
-                        # import
-                        gen = __import__(filename)
-                    
-                        # Fetch the shortname or just use the first two letters of the filename
-                        shortname = gen.shortname if hasattr(gen, 'shortname') else filename[0:2]
+                    self.generators[shortname] = gen
 
-                        self.generators[shortname] = gen
+            print 'Loaded', len(gens), 'generators from', self.config['paths']['orc'] 
 
-                print 'Loaded', len(gens), 'generators from', orcpath
-
-            except OSError:
-                print 'No generators found in ' + orcpath
+        except OSError:
+            print 'No generators found in ' + self.config['paths']['orc'] 
 
         print
 
