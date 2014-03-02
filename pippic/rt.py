@@ -3,6 +3,7 @@ import time
 from pippi import dsp
 from pippic import param
 from pippic import osc 
+from pippic import settings
 import multiprocessing as mp
 import alsaaudio
 
@@ -18,38 +19,24 @@ def grid(tick, bpm):
         dsp.delay(bpm)
         count += 1
 
-def render(play, buffers, voice_params, once, uno):
+def render(play, voice_id, once, uno):
     os.nice(19)
     current = mp.current_process()
-    buffer_type = current.name[0]
-    voice_id = current.name[1:]
 
-    params = getattr(voice_params, voice_id).collapse()
-
-    out = play(params)
-
-    sound, data = (out[0], out[1]) if len(out) == 2 else (out, None) 
-
-    if data is not None:
-        params = getattr(voice_params, voice_id)
-        params.data['data'] = data
-        setattr(voice_params, voice_id, params)
+    out = play(voice_id)
 
     if once == True:
-        params = getattr(voice_params, voice_id)
-        params.set('once', False)
-        setattr(voice_params, voice_id, params)
+        settings.voice(voice_id, 'once', False)
 
-    buffer_id = 'n' + voice_id if buffer_type == 'n' else voice_id
+    settings.buffer(voice_id, out)
 
-    setattr(buffers, buffer_id, dsp.split(sound, 500))
-
-def dsp_loop(out, buffer, params, voice_params, voice_id, jack=False):
+def dsp_loop(out, buffer, voice_id):
     os.nice(0)
-    params = getattr(voice_params, voice_id)
 
-    target_volume = params.get('target_volume', 1.0)
-    post_volume   = params.get('post_volume', 1.0)
+    target_volume = settings.voice(voice_id, 'volume')
+    post_volume   = settings.voice(voice_id, 'post_volume')
+
+    buffer = dsp.split(buffer, 500)
 
     for chunk in buffer:
         if target_volume != post_volume:
@@ -63,17 +50,13 @@ def dsp_loop(out, buffer, params, voice_params, voice_id, jack=False):
         out.write(chunk)
 
         if post_volume < 0.002:
-            params = getattr(voice_params, voice_id)
-            params.set('loop', False)
-            params.set('post_volume', post_volume)
-            setattr(voice_params, voice_id, params)
+            settings.voice(voice_id, 'loop', False)
+            settings.voice(voice_id, 'post_volume', post_volume)
             break
 
-    params = getattr(voice_params, voice_id)
-    params.set('post_volume', post_volume)
-    setattr(voice_params, voice_id, params)
+    settings.voice(voice_id, 'post_volume', post_volume)
 
-def out(generator, buffers, voice_params, tick):
+def out(generator, tick):
     """ Master playback process spawned by play()
         Manages render and playback processes  
 
@@ -86,22 +69,16 @@ def out(generator, buffers, voice_params, tick):
     # Give this process a high priority to help prevent unwanted audio glitching
     #os.nice(-19)
 
-    voice_id = mp.current_process().name
-
-    # Fetch voice params from namespace
-    params = getattr(voice_params, voice_id).collapse()
+    voice_id = str(mp.current_process().name)
 
     # Spawn a render process which will write generator output
     # into the buffer for this voice
-    r = mp.Process(name='r' + voice_id, target=render, args=(generator.play, buffers, voice_params, False, False))
+    r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False))
     r.start()
     r.join()
 
-    # Fetch the buffer that was just filled
-    buffer = getattr(buffers, voice_id)
-
     # Open a connection to an ALSA PCM device
-    device = params.get('device', 'default')
+    device = settings.param(voice_id, 'device')
 
     try:
         out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, alsaaudio.PCM_NORMAL, device)
@@ -121,46 +98,33 @@ def out(generator, buffers, voice_params, tick):
     volume              = 1.0
     next                = False
 
-    while params.get('loop', True) == True:
-        params = getattr(voice_params, voice_id).collapse()
-        active = mp.active_children()
-
-        regenerate    = params.get('regenerate', False)
-        once          = params.get('once', False)
-        uno           = params.get('uno', False)
-        quantize      = params.get('quantize', False)
-        target_volume = params.get('target_volume', 1.0)
-
+    buffer = settings.buffer(voice_id)
+    while settings.voice(voice_id, 'loop') == True:
+        regenerate    = settings.voice(voice_id, 'regenerate')
+        once          = settings.voice(voice_id, 'once')
+        uno           = settings.voice(voice_id, 'uno')
+        quantize      = settings.voice(voice_id, 'quantize')
+        target_volume = settings.voice(voice_id, 'volume')
 
         if uno == True:
-            params = getattr(voice_params, voice_id)
-            params.set('loop', False)
-            setattr(voice_params, voice_id, params)
-            params = getattr(voice_params, voice_id).collapse()
+            settings.param(voice_id, 'loop', False)
 
-        if hasattr(buffers, 'n' + voice_id):
-            buffer = getattr(buffers, 'n' + voice_id)
-            setattr(buffers, voice_id, buffer)
-            delattr(buffers, 'n' + voice_id)
-
-        if len(active) == 0 and (regenerate is True or once is True):
+        if regenerate == True or once == True:
             reload(generator)
-            next = mp.Process(name='n' + voice_id, target=render, args=(generator.play, buffers, voice_params, once, uno))
-            next.start()
+            r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False))
+            try:
+                r.start()
+                r.join()
+                buffer = settings.buffer(voice_id)
+            except OSError:
+                pass # Lame. Rehearsal is in an hour tho.
 
-        active = mp.active_children()
-        if len(active) == 0:
-            buffer = getattr(buffers, voice_id)
-
-        if quantize is not False:
+        if quantize != False:
             tick.wait()
 
-        dsp_loop(out, buffer, params, voice_params, voice_id)
-        params = getattr(voice_params, voice_id).collapse()
+        dsp_loop(out, buffer, voice_id)
 
-    # Cleanup 
-    delattr(voice_params, voice_id)
-    delattr(buffers, voice_id)
+    settings.remove_voice(voice_id)
 
 def capture(length=44100, device='default', numchans=2):
     input = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, 0, device)

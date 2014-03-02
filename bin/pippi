@@ -6,6 +6,8 @@ import sys
 import re
 import time
 import subprocess
+import json
+import glob
 
 from pippi import dsp
 from pippi import tune 
@@ -13,6 +15,8 @@ from pippi import tune
 from pippic import param
 from pippic import settings
 from pippic import rt
+
+from dumptruck import DumpTruck
 
 import multiprocessing as mp
 from termcolor import colored
@@ -27,68 +31,46 @@ class Pippi(cmd.Cmd):
     prompt = 'pippi: '
     intro = 'Pippi Console'
 
-    cc = {} 
-    vid = 0
-
     def __init__(self):
         cmd.Cmd.__init__(self)
 
         # Load config from file and populate current session
-        self.config = settings.init_session()
+        settings.init_session()
 
-        self.bpm = self.config.get('bpm')
-        self.root = self.config.get('a0')
+        self.bpm = settings.config('bpm')
+        self.root = settings.config('a0')
 
-        # Update sys.path to include any generator orc/ directories
-        # listed in our config
-        #sys.path += [ orcpath[0] for orcpath in self.config.items('orcpaths') ]
-        print self.config['paths']['orc']
-        sys.path += [ self.config['paths']['orc'] ]
+        # Update sys.path to include generator orc/ directory
+        self.orc_path = settings.config('orc')
+        sys.path += [ self.orc_path ]
 
-        # A set of shared namespaces to enable data 
-        # passing between processes.
-        self.server = mp.Manager()
-        self.buffers = self.server.Namespace()
-        self.params = self.server.Namespace()
-        self.groups = {}
-
-        # TODO probably some sort of hash function 
-        # would be better than this integer-as-id hack.
-        self.voice_id = str(0)
-
+        # Start rhythm grid tick process
         self.tick = mp.Event()
-
         self.grid = mp.Process(name='grid', target=rt.grid, args=(self.tick, self.bpm))
         self.grid.start()
-
-        self.cc = []
 
         # Load all available generators into a dict 
         self.generators = {}
 
         try:
-            gens = os.listdir(self.config['paths']['orc'])
+            gens = glob.glob("%s*.py" % self.orc_path)
 
-            pattern = re.compile(r'(^[a-zA-Z]+)(\.py$)')
+            for filename in gens:
+                # Get fileame from relative path and strip .py extension
+                filename = os.path.basename(filename)[:-3]
 
-            for gen in gens:
-                filename = pattern.search(gen)
+                # import the generator
+                gen = __import__(filename)
+            
+                # Fetch the shortname or just use the first two letters of the filename
+                shortname = gen.shortname if hasattr(gen, 'shortname') else filename[0:2]
 
-                if filename:
-                    filename = filename.group(1)
+                self.generators[shortname] = gen
 
-                    # import
-                    gen = __import__(filename)
-                
-                    # Fetch the shortname or just use the first two letters of the filename
-                    shortname = gen.shortname if hasattr(gen, 'shortname') else filename[0:2]
-
-                    self.generators[shortname] = gen
-
-            print 'Loaded', len(gens), 'generators from', self.config['paths']['orc'] 
+            print 'Loaded', len(gens), 'generators from', self.orc_path
 
         except OSError:
-            print 'No generators found in ' + self.config['paths']['orc'] 
+            print 'No generators found in ' + self.orc_path
 
         print
 
@@ -356,23 +338,18 @@ class Pippi(cmd.Cmd):
                         params.data.pop(generator.shortname)
                         params.data['generator'] = { 'value': generator.name, 'name': 'generator' }
 
-                    # Increment voice id and print voice information. TODO: pretty print & abstract
-                    self.voice_id = str(int(self.voice_id) + 1)
-                    print self.voice_id, self.format_params(params.data)
+                    # Insert params and voice metadata, get voice_id
+                    voice_id = settings.add_voice(params)
 
-                    # Allocate a new shared voice dict to store generator params, and audio
-                    # data for the render process. (Render processes are spawned on demand by 
-                    # the voice's playback process.)
-
-                    setattr(self.buffers, self.voice_id, '')
-                    setattr(self.params, self.voice_id, params)
+                    # TODO print from db after voice process actually starts...
+                    print voice_id, self.format_params(params.data)
 
                     # Import the generator as a python module and spawn a playback 
                     # process from rt.out, passing in the generator's play method 
                     # which will be run from within a render process - spawned on demand 
                     # by the voice's playback process. Sheesh.
 
-                    playback_process = mp.Process(name=self.voice_id, target=rt.out, args=(generator, self.buffers, self.params, self.tick))
+                    playback_process = mp.Process(name=voice_id, target=rt.out, args=(generator, self.tick))
                     playback_process.start()
 
 
