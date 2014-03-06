@@ -16,8 +16,6 @@ from pippic import param
 from pippic import settings
 from pippic import rt
 
-from dumptruck import DumpTruck
-
 import multiprocessing as mp
 from termcolor import colored
 from os.path import expanduser
@@ -67,6 +65,9 @@ class Pippi(cmd.Cmd):
 
                 self.generators[shortname] = gen
 
+            # TODO there is probably a nicer way to do this without adding extra conf reqs
+            settings.import_generators(self.generators)
+
             print 'Loaded', len(gens), 'generators from', self.orc_path
 
         except OSError:
@@ -82,32 +83,24 @@ class Pippi(cmd.Cmd):
                 # Only update master if 'master' param passed
             self.grid.terminate()
             self.bpm = float(cmd)
+            settings.config('bpm', self.bpm)
+
             self.grid = mp.Process(name='grid', target=rt.grid, args=(self.tick, self.bpm))
             self.grid.start()
 
-            active = mp.active_children()
-
-            for voice in active:
-                if hasattr(self.params, voice.name):
-                    params = getattr(self.params, voice.name)
-
-                    self.update_param(voice.name, 'bpm', self.bpm)
-                    self.update_param(voice.name, 'once', True)
+            settings.param('all', 'bpm', self.bpm)
  
         except Exception, e:
             dsp.log(e)
 
+    def do_tp(self, cmd):
+        settings.get_params(1)
+
     def do_root(self, cmd):
         try:
-            self.root = float(cmd)
+            self.a0 = float(cmd)
 
-            active = mp.active_children()
-
-            for voice in active:
-                if hasattr(self.params, voice.name):
-                    params = getattr(self.params, voice.name)
-                    self.update_param(voice.name, 'root', self.root)
-                    self.update_param(voice.name, 'once', True)
+            settings.param('all', 'a0', self.a0)
 
         except Exception, e:
             dsp.log(e)
@@ -138,17 +131,7 @@ class Pippi(cmd.Cmd):
             if cmds[0] != '' and cmds[0] != 'all':
                 gen = cmds.pop(0)
 
-            active = mp.active_children()
-
-            for voice in active:
-                if hasattr(self.params, voice.name):
-                    params = getattr(self.params, voice.name)
-
-                    if params.get('generator') in gen or gen == 'all':
-                        self.update_param(voice.name, cmds=cmds)
-
-                    # Force a single regeneration on param update
-                    self.update_param(voice.name, 'once', True)
+            self.update_param(gen, cmds=cmds)
 
         except Exception, e:
             dsp.log(e)
@@ -158,7 +141,8 @@ class Pippi(cmd.Cmd):
             cmds = cmd.strip().split(' ')
             gen = cmds.pop(0)
             gen = gen if len(gen) > 0 else 'all'
-            self.update_params(gen=gen, param='loop', value=False)
+            #self.update_params(gen=gen, param='loop', value=False)
+            settings.voice('all', 'loop', False)
         except Exception, e:
             dsp.log(e)
 
@@ -168,7 +152,8 @@ class Pippi(cmd.Cmd):
 
             for cmd in cmds:
                 voice_id = cmd.strip() 
-                self.update_param(voice_id, 'loop', False)
+                settings.voice(voice_id, 'loop', False)
+
         except Exception, e:
             dsp.log(e)
 
@@ -187,73 +172,40 @@ class Pippi(cmd.Cmd):
         except Exception, e:
             dsp.log(e)
 
-    def do_i(self, cmd=[]):
-        active = mp.active_children()
-        dsp.log([ (a.name, a.pid) for a in active])
-        try:
-            voices = []
-            for voice in active:
-                if hasattr(self.params, voice.name):
-                    params = getattr(self.params, voice.name)
-                    voices += [ "%02i %s" % (int(voice.name), self.format_params(params.data)) ]
-
-            voices.sort()
-
-            for voice in voices:
-                print voice
-
-        except Exception, e:
-            dsp.log(e)
+    def do_i(self, cmd):
+        for p in settings.get_all_params():
+            print "%02i %s" % (int(p['voice']['id']), self.format_params(p['params']))
 
     def update_params(self, gen='all', param=None, value=None):
-        active = mp.active_children()
-
-        try:
-            for voice in active:
-                if hasattr(self.params, voice.name):
-                    params = getattr(self.params, voice.name)
-
-                    if params.get('generator') == gen or gen == 'all':
-                        self.update_param(voice.name, param, value)
-
-        except Exception, e:
-            dsp.log(e)
+        self.update_param('all', param, value)
 
     def update_param(self, voice_id, param=None, value=None, cmds=None):
-        try:
-            if cmds is not None:
-                for cmd in cmds:
-                    cmd = cmd.split(':')
-                    value = cmd[1] if len(cmd) == 2 else True
+        if cmds is not None:
+            for cmd in cmds:
+                cmd = cmd.split(':')
+                value = cmd[1] if len(cmd) == 2 else True
 
-                    # Some special values get replaced:
-                    # F becomes False
-                    if value == 'F':
-                        value = False
+                # Some special values get replaced:
+                # F becomes False
+                if value == 'F':
+                    value = False
 
-                    self.update_param(voice_id, cmd[0], value)
+                settings.param(voice_id, cmd[0], value)
+        elif param is not None and value is not None:
+           settings.param(voice_id, param, value)
 
-            elif param is not None and value is not None:
-                if hasattr(self.params, voice_id):
-                    params = getattr(self.params, voice_id)
-                    params.set(param, value)
-                    setattr(self.params, voice_id, params)
-        except Exception, e:
-            dsp.log(e)
-
-
-    def format_params(self, params=[]):
+    def format_params(self, params):
         # TODO: translate types & better formatting
         param_string = ''
         for param in params:
-            #value = params[param]['name'] if param == 'generator' else params[param]
-            value = params[param]
-            if str(param) == 'generator':
-                param_string += colored(str(param)[0:3] + ': ', 'blue')
-                param_string += colored(str(value['value'])[:10].upper(), 'green')
+            value = param['value']
+            name = param['name']
+            if str(name) == 'generator':
+                param_string += colored(str(name)[0:3] + ': ', 'blue')
+                param_string += colored(str(value)[:10].upper(), 'green')
             else:
-                param_string += colored(str(param)[0:3] + ': ', 'cyan')
-                param_string += colored(str(value['value'])[:10], 'yellow')
+                param_string += colored(str(name)[0:3] + ': ', 'cyan')
+                param_string += colored(str(value)[:10], 'yellow')
 
             param_string += ' '
         
@@ -271,94 +223,15 @@ class Pippi(cmd.Cmd):
             dsp.log(e)
 
     def default(self, cmd):
-        # Safety first!
-        try:
+        # Break comma separated commands
+        # into a list of command strings
+        cmds = cmd.strip().split(',')
 
-            # Break comma separated commands
-            # into a list of command strings
-            cmds = cmd.strip().split(',')
+        for cmd in cmds:
+            voice_id, generator_name = settings.add_voice(cmd)
 
-            # For each command string, unpack and load
-            # into a param.Param instance
-            #
-            # For our purposes, a 'command' refers to text typed at the pippi
-            # console, while 'param' refers to the translatable key-value pairs 
-            # passed to the play method of generator scripts.
-            #
-            # So:
-            #   sh o:3
-            #
-            # Could become:
-            #   { 'generator': 'shine', 'octave': {'value': 3, 'type': 'integer'} }
-            # 
-            # And:
-            #   dr h:1.2.3.4 t:4b wf:tri n:eb.g
-            # 
-            # Could become:
-            #   {
-            #       'generator': 'drone',
-            #       'harmonics': {'value': '1.2.3.4', 'type': 'integer-list'},
-            #       'length': {'value': '4b', 'type': 'frame'},
-            #       'waveform': {'value': 'tri'},
-            #       'notes': {'value': 'eb.g', 'type': 'note-list'}
-            #   }
-            # 
-            # For a complete list of reserved words and built-in types please 
-            # refer to the patterns and type settings in param.py.
-
-            for cmd in cmds:
-                # Split space-separated params into a list
-                commands = cmd.strip().split()
-
-                # Split colon-separated key:value param pairs
-                # into lists.
-                commands = [ command.split(':') for command in commands ]
-
-                try:
-                    generator = self.generators.get(commands[0][0], False)
-                    params = param.Param(commands) 
-
-                    if 'root' not in params.data:
-                        params.data['root'] = { 'value': self.root, 'name': 'root' }
-
-                    if 'bpm' not in params.data:
-                        params.data['bpm'] = { 'value': self.bpm, 'name': 'bpm' }
-
-                    if 'loop' not in params.data:
-                        if hasattr(generator, 'loop'):
-                            params.data['loop'] = { 'value': generator.loop, 'name': 'loop' }
-                        else:
-                            params.data['loop'] = { 'value': True, 'name': 'loop' }
-
-                    if 'device' not in params.data:
-                        if hasattr(generator, 'device'):
-                            params.data['device'] = { 'value': generator.device, 'name': 'device' }
-
-                    if generator.shortname in params.data:
-                        params.data.pop(generator.shortname)
-                        params.data['generator'] = { 'value': generator.name, 'name': 'generator' }
-
-                    # Insert params and voice metadata, get voice_id
-                    voice_id = settings.add_voice(params)
-
-                    # TODO print from db after voice process actually starts...
-                    print voice_id, self.format_params(params.data)
-
-                    # Import the generator as a python module and spawn a playback 
-                    # process from rt.out, passing in the generator's play method 
-                    # which will be run from within a render process - spawned on demand 
-                    # by the voice's playback process. Sheesh.
-
-                    playback_process = mp.Process(name=voice_id, target=rt.out, args=(generator, self.tick))
-                    playback_process.start()
-
-
-                except TypeError, e:
-                    dsp.log('invalid generator', e)
-
-        except Exception, e:
-            dsp.log(e)
-
+            playback_process = mp.Process(name=voice_id, target=rt.out, args=(self.generators[generator_name], self.tick))
+            playback_process.start()
 
     def do_EOF(self, line):
         return True

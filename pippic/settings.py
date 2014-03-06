@@ -3,7 +3,7 @@ import json
 from pprint import pprint
 from dumptruck import DumpTruck
 import subprocess
-from pippic import param
+from pippic import types
 from pippi import dsp
 
 session_filename = 'pippi.session'
@@ -69,6 +69,22 @@ def init_session():
 
     s.insert([ {"name": name, "value": value } for name, value in config.iteritems() ], "config")
 
+    # Load types
+    types.import_types()
+
+def import_generators(generators):
+    s = get_session()
+
+    for i, g in generators.iteritems():
+        generator = {
+                'shortname': g.shortname,
+                'name': g.name
+                }
+
+        s.insert(generator, 'generators')
+
+    return True
+
 def config(key, value=None):
     s = get_session()
 
@@ -91,8 +107,26 @@ def buffer(voice_id, value=None):
 
     return value
 
-def param(voice_id, key, value=None):
+def get_param(voice_id, key, default=None):
+    try:
+        return param(voice_id, key)
+    except IndexError:
+        return default
+
+def param(voice_id, key, value=None, gen=None, default=None):
     s = get_session()
+
+    if voice_id == 'all' and gen is None:
+        sql = "update params set value = ? where name = ?"
+        s.execute(sql, (value, key))
+
+        return value
+
+    elif voice_id == 'all' and gen is not None:
+        sql = "update params set value = ? where name = ? and generator = ?"
+        s.execute(sql, (value, key, gen))
+
+        return value
 
     if value is not None:
         # Set the value
@@ -100,28 +134,55 @@ def param(voice_id, key, value=None):
         s.execute(sql, (value, key, voice_id))
     else:
         # Get the value
-        sql = "select value from params where name = ? and voice_id = ?"
-        try:
-            value = s.execute(sql, (key, voice_id))[0]['value']
-        except IndexError:
-            print value
+        sql = "select output_type, value from params where name = ? and voice_id = ?"
+        p = s.execute(sql, (key, voice_id))[0]
+
+        value = p['value']
+
+        if p['output_type'] == 'integer':
+            value = int(value)
+
+        elif p['output_type'] == 'float':
+            value = float(value)
 
     return value
+
+def get_all_params():
+    voices = get_voices()
+
+    voice_params = []
+
+    for voice in voices:
+        voice_params += [ { 'voice': voice, 'params': get_params(voice['id']) } ]
+
+    return voice_params
+
+def get_voices():
+    s = get_session()
+
+    sql = "select * from voices order by id"
+    return s.execute(sql)
 
 def get_params(voice_id):
     s = get_session()
 
-    print voice_id
-
-    sql = "select * from params where voice_id = ?"
-    params = s.execute(sql, (voice_id,))
-
-    print params
-
-    return params
+    sql = "select name, value from params where voice_id = ?"
+    return s.execute(sql, (voice_id,))
 
 def voice(voice_id, key, value=None):
     s = get_session()
+
+    if voice_id == 'all' and value is not None:
+        sql = "update voices set %s = ?" % key
+        s.execute(sql, (value,))
+
+        return value
+
+    elif voice_id == 'all' and gen is not None:
+        sql = "update params set value = ? where name = ? and generator = ?"
+        s.execute(sql, (value, key, gen))
+
+        return value
 
     if value is not None:
         # Set the value
@@ -141,71 +202,128 @@ def remove_voice(voice_id):
     sql = "delete from voices where id = ?"
     s.execute(sql, (voice_id,))
 
-def add_voice(params):
-    s = get_session()
+    sql = "delete from params where voice_id = ?"
+    s.execute(sql, (voice_id,))
 
-    # Post-render params are still awkward
-    if 'loop' in params.data:
-        loop = True
-        params.data.pop('loop')
+def parse_cmds(cmds, voice_id=None):
+    """ Parse a raw command string typed at the pippi console or 
+        sent by a robot friend and return a list of param dicts in 
+        db/session format. (See default schema for canonical format)
+        """
+    cmds = cmds.strip().split(' ')
+    params = [ parse_cmd(cmd, voice_id) for cmd in cmds ]
+
+    vparams = [ p[0] for p in params if p[1] == True ]
+    params = [ p[0] for p in params if p[1] == False ]
+
+    generator = [ p for p in params if p['name'] == 'generator' ]
+
+    return generator, vparams, params 
+
+def parse_cmd(cmd, voice_id=None):
+    """ Parse a single command and 
+        return a param dict.
+    """
+
+    # Names for reserved voice metadata
+    vp = ['re', 'once', 'uno', 'qu']
+
+    # Raw param commands are given in the format 
+    #   key:value
+    # or for booleans just 
+    #   key
+    cmd = cmd.split(':')
+
+    # Determine names and types
+    shortname = cmd[0]
+    type = types.get_type_or_generator(shortname=shortname)
+
+    name = type['name']
+    accepts = type['accepts']
+    output_type = type['output_type']
+
+    value = cmd[1] if len(cmd) == 2 else True
+
+    if value == 'F':
+        value = False
+
+    if name == 'generator':
+        value = type['generator_shortname']
+
+    if accepts is not None:
+        for input_type in accepts:
+            if types.is_type(value, input_type):
+                cooked = types.convert(value, input_type, output_type)
+                break
+            else:
+                cooked = False
+    elif name == 'generator':
+        cooked = type['generator_name']
     else:
-        loop = False
+        cooked = value
 
-    if 're' in params.data:
-        regenerate = True
-        params.data.pop('re')
-    else:
-        regenerate = False
-
-    if 'once' in params.data:
-        once = True
-        params.data.pop('once')
-    else:
-        once = False
-
-    if 'uno' in params.data:
-        uno = True
-        params.data.pop('uno')
-    else:
-        uno = False
-
-    if 'quantize' in params.data:
-        quantize = True
-        params.data.pop('quantize')
-    else:
-        quantize = False
-
-    voice = {'loop': loop, 'regenerate': regenerate, 'volume': 1.0, 'post_volume': 1.0}
-    voice_id = s.insert(voice, 'voices')
-
-    for p in params.data:
-        output_type = params.types.get(p, {'name': p})
-        if 'type' in output_type:
-            output_type = output_type['type']
-        else:
-            output_type = 'boolean'
-
-        cooked = params.get(p)
-        value = params.data[p]['value']
-        name = params.data[p]['name']
-        shortname = p
-
-        p = {
+    param = {
             'name': name,
             'shortname': shortname,
+            'accepts': accepts,
             'output_type': output_type,
             'value': value,
             'cooked': cooked,
             'voice_id': voice_id
         }
 
-        s.insert(p, 'params')
+    return param, param['shortname'] in vp
 
-    return voice_id
 
+def add_voice(cmds):
+    s = get_session()
+
+    generator, vparams, params = parse_cmds(cmds)
+
+    def searchp(params, pname, default):
+        for index, p in enumerate(params):
+            if p['shortname'] == pname:            
+                return p['cooked']
+
+        return default 
+
+    # Check for missing required params and insert defaults
+    voice = {
+            'loop': True, 
+            'regenerate': searchp(vparams, 're', False), 
+            'once': searchp(vparams, 'once', False), 
+            'uno': searchp(vparams, 'uno', False), 
+            'quantize': searchp(vparams, 'qu', False), 
+            'target_volume': 1.0, 
+            'post_volume': 1.0,
+            'generator': generator[0]['cooked']
+        }
+
+    voice_id = s.insert(voice, 'voices')
+
+    for i, p in enumerate(params):
+        params[i]['voice_id'] = voice_id
+
+    # TODO: device, root, a0, bpm, other config values, etc
+    # Names for globally present params (insert if not specified)
+    gp = { 
+            'bpm': 'bpm', 
+            'device': 'device'
+    }
+
+    for shortname, longname in gp.iteritems():
+        print shortname
+        dvalue = config(shortname)
+
+        cmd = '%s:%s' % (shortname, dvalue)
+
+        p = parse_cmd(cmd, voice_id)
+        params += [ p[0] ]
+    
+    s.insert(params, 'params')
+
+    return voice_id, generator[0]['value']
 
 def get_session():
-    s = DumpTruck(session_filename)
-    s.connection.text_factory = str # Allows us to store byte strings
-    return s
+    return DumpTruck(session_filename)
 

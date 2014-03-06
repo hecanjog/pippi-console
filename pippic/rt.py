@@ -33,7 +33,10 @@ def render(play, voice_id, once, uno):
 def dsp_loop(out, buffer, voice_id):
     os.nice(0)
 
-    target_volume = settings.voice(voice_id, 'volume')
+    plays = int(settings.voice(voice_id, 'plays')) + 1
+    settings.voice(voice_id, 'plays', plays)
+
+    target_volume = settings.voice(voice_id, 'target_volume')
     post_volume   = settings.voice(voice_id, 'post_volume')
 
     buffer = dsp.split(buffer, 500)
@@ -104,7 +107,7 @@ def out(generator, tick):
         once          = settings.voice(voice_id, 'once')
         uno           = settings.voice(voice_id, 'uno')
         quantize      = settings.voice(voice_id, 'quantize')
-        target_volume = settings.voice(voice_id, 'volume')
+        target_volume = settings.voice(voice_id, 'target_volume')
 
         if uno == True:
             settings.param(voice_id, 'loop', False)
