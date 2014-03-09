@@ -47,6 +47,8 @@ class Pippi(cmd.Cmd):
         self.grid = mp.Process(name='grid', target=rt.grid, args=(self.tick, self.bpm))
         self.grid.start()
 
+        sys.path += ['bots/']
+
         # Load all available generators into a dict 
         self.generators = {}
 

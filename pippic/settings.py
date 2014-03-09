@@ -99,6 +99,23 @@ def config(key, value=None):
 
     return value
 
+def shared(key, value=None):
+    s = get_session()
+
+    if value is not None:
+        # Set the value
+        s.insert({'name': key, 'value': value}, 'shared', upsert=True)
+    else:
+        # Get the value
+        sql = "select value from shared where name = ?"
+        try:
+            value = s.execute(sql, (key,))[0]['value']
+        except IndexError:
+            value = 0 # Prolly gonna reget this. TODO - betterer?
+
+    return value
+
+
 def buffer(voice_id, value=None):
     if value is not None:
         dsp.write(value, 'cache/buf-%s' % voice_id)
@@ -312,7 +329,6 @@ def add_voice(cmds):
     }
 
     for shortname, longname in gp.iteritems():
-        print shortname
         dvalue = config(shortname)
 
         cmd = '%s:%s' % (shortname, dvalue)

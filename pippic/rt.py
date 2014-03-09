@@ -20,7 +20,7 @@ def grid(tick, bpm):
         count += 1
 
 def render(play, voice_id, once, uno):
-    os.nice(19)
+    os.nice(5)
     current = mp.current_process()
 
     out = play(voice_id)
@@ -35,6 +35,15 @@ def dsp_loop(out, buffer, voice_id):
 
     plays = int(settings.voice(voice_id, 'plays')) + 1
     settings.voice(voice_id, 'plays', plays)
+
+    gcount = int(settings.shared('count'))
+    maxgcount = int(settings.shared('maxcount'))
+    if maxgcount > 0 and gcount >= maxgcount:
+        gcount = 0
+    else:
+        gcount += 1
+
+    settings.shared('count', gcount)
 
     target_volume = settings.voice(voice_id, 'target_volume')
     post_volume   = settings.voice(voice_id, 'post_volume')
@@ -120,7 +129,7 @@ def out(generator, tick):
                 r.join()
                 buffer = settings.buffer(voice_id)
             except OSError:
-                pass # Lame. Rehearsal is in an hour tho.
+                dsp.log('failed to regenerate voice %s' % voice_id)
 
         if quantize != False:
             tick.wait()
