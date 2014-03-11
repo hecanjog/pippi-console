@@ -20,7 +20,7 @@ def grid(tick, bpm):
         count += 1
 
 def render(play, voice_id, once, uno):
-    os.nice(5)
+    os.nice(19)
     current = mp.current_process()
 
     out = play(voice_id)

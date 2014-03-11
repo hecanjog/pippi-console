@@ -48,6 +48,7 @@ class Pippi(cmd.Cmd):
         self.grid.start()
 
         sys.path += ['bots/']
+        sys.path += ['orc/']
 
         # Load all available generators into a dict 
         self.generators = {}
@@ -76,6 +77,14 @@ class Pippi(cmd.Cmd):
             print 'No generators found in ' + self.orc_path
 
         print
+
+    def do_bot(self, cmd):
+        botname = cmd.strip()
+        bot = __import__(botname)
+        bot.make_telemetry()
+
+        bot_process = mp.Process(name=botname, target=bot.run, args=(self.generators, self.tick))
+        bot_process.start()
 
     def do_bpm(self, cmd):
         try:
