@@ -12,7 +12,6 @@ import glob
 from pippi import dsp
 from pippi import tune 
 
-from pippic import param
 from pippic import settings
 from pippic import rt
 
