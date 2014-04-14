@@ -1,7 +1,6 @@
 import os
 import time
 from pippi import dsp
-from pippic import param
 from pippic import osc 
 from pippic import settings
 import multiprocessing as mp

@@ -81,7 +81,6 @@ class Pippi(cmd.Cmd):
     def do_bot(self, cmd):
         botname = cmd.strip()
         bot = __import__(botname)
-        bot.make_telemetry()
 
         bot_process = mp.Process(name=botname, target=bot.run, args=(self.generators, self.tick))
         bot_process.start()
