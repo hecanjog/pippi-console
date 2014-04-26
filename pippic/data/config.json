@@ -1,0 +1,9 @@
+{
+    "a0": 27.5, 
+    "key": "c",
+    "quality": "major", 
+    "tune": "just", 
+    "bpm": 120.0, 
+    "sounds": ["sounds"], 
+    "orc": ["orc"]
+}

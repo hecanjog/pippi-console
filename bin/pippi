@@ -1,31 +1,42 @@
 #!/usr/bin/env python2.7
 
+"""Pippi Console
+
+Usage:
+    pippi
+    pippi new <dirname>
+    pippi --version
+
+Options:
+    -h --help       You're lookin at it.
+    --version       Print version.
+    new <dirname>   Create a new session with the given directory name. 
+
+"""
+
 import cmd
 import os
 import sys
 import re
-import time
-import subprocess
 import json
+import subprocess
 import glob
+import docopt
 
 from pippi import dsp
-from pippi import tune 
 
 from pippic import settings
 from pippic import rt
 
 import multiprocessing as mp
 from termcolor import colored
-from os.path import expanduser
-import ConfigParser
 
 class Pippi(cmd.Cmd):
     """ Pippi Console 
     """
 
     dsp.log('starting', 'w')
-    prompt = 'pippi: '
+    prompt = '^_- '
     intro = 'Pippi Console'
 
     def __init__(self):
@@ -38,8 +49,8 @@ class Pippi(cmd.Cmd):
         self.root = settings.config('a0')
 
         # Update sys.path to include generator orc/ directory
-        self.orc_path = settings.config('orc')
-        sys.path += [ self.orc_path ]
+        self.orc_paths = json.loads(settings.config('orc'))
+        sys.path += self.orc_paths
 
         # Start rhythm grid tick process
         self.tick = mp.Event()
@@ -47,13 +58,15 @@ class Pippi(cmd.Cmd):
         self.grid.start()
 
         sys.path += ['bots/']
-        sys.path += ['orc/']
+        sys.path += self.orc_paths
 
         # Load all available generators into a dict 
         self.generators = {}
 
         try:
-            gens = glob.glob("%s*.py" % self.orc_path)
+            gens = []
+            for orc_path in self.orc_paths:
+                gens += glob.glob("%s%s*.py" % (orc_path, os.sep))
 
             for filename in gens:
                 # Get fileame from relative path and strip .py extension
@@ -67,10 +80,9 @@ class Pippi(cmd.Cmd):
 
                 self.generators[shortname] = gen
 
-            # TODO there is probably a nicer way to do this without adding extra conf reqs
             settings.import_generators(self.generators)
 
-            print 'Loaded', len(gens), 'generators from', self.orc_path
+            print 'Loaded', len(gens), 'generators from', ' '.join(self.orc_paths)
 
         except OSError:
             print 'No generators found in ' + self.orc_path
@@ -255,6 +267,12 @@ class Pippi(cmd.Cmd):
             p.join()
 
 if __name__ == '__main__':
+        args = docopt.docopt(__doc__)
+
+        if args['new'] == True and args['<dirname>'] is not None:
+            settings.new_session(args['<dirname>'])
+            exit()
+
         # Create console
         console = Pippi()
 

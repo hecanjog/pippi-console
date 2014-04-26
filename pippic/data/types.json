@@ -1,0 +1,160 @@
+{
+    "o": {
+        "name": "octave",
+        "output_type": "integer",
+        "accepts": ["integer", "float"]
+    },
+
+    "bi": {
+        "name": "buffer_index",
+        "output_type": "integer",
+        "accepts": ["integer"]
+    },
+
+    "si": {
+        "name": "sample_index",
+        "output_type": "integer",
+        "accepts": ["integer"]
+    },
+
+    "bt": {
+        "name": "buffer_length",
+        "output_type": "frame",
+        "accepts": ["beat", "second", "millisecond", "integer"]
+    },
+
+    "m": {
+        "name": "multiple",
+        "output_type": "integer",
+        "accepts": ["integer"]
+    },
+
+    "n": {
+        "name": "note",
+        "output_type": "note-list",
+        "accepts": ["note-list"]
+    },
+
+    "hz": {
+        "name": "hertz",
+        "output_type": "hz-list",
+        "accepts": ["hz-list"]
+    },
+
+    "h": {
+        "name": "harmonic",
+        "output_type": "integer-list",
+        "accepts": ["integer-list"]
+    },
+
+    "e": {
+        "name": "envelope",
+        "output_type": "string",
+        "accepts": ["alphanumeric"]
+    },
+
+    "wf": {
+        "name": "waveform",
+        "output_type": "string",
+        "accepts": ["alphanumeric"]
+    },
+
+    "d": {
+        "name": "drum",
+        "output_type": "string-list",
+        "accepts": ["string-list"]
+    },
+
+    "r": {
+        "name": "repeats",
+        "output_type": "integer",
+        "accepts": ["integer"]
+    },
+
+    "i": {
+        "name": "instrument",
+        "output_type": "string",
+        "accepts": ["alphanumeric"]
+    },
+
+    "s": {
+        "name": "scale",
+        "output_type": "integer-list",
+        "accepts": ["integer-list"]
+    },
+
+    "sp": {
+        "name": "speed",
+        "output_type": "float",
+        "accepts": ["float", "integer"]
+    },
+
+    "t": {
+        "name": "length",
+        "output_type": "frame",
+        "accepts": ["beat", "second", "millisecond", "integer"]
+    },
+
+    "p": {
+        "name": "padding",
+        "output_type": "frame",
+        "accepts": ["beat", "second", "millisecond", "integer"]
+    },
+
+    "w": {
+        "name": "width",
+        "output_type": "frame",
+        "accepts": ["integer", "beat", "millisecond", "second"]
+    },
+
+    "tt": {
+        "name": "trigger_id",
+        "output_type": "integer",
+        "accepts": ["integer"]
+    },
+
+    "v": {
+        "name": "volume",
+        "output_type": "float",
+        "accepts": ["integer", "float"]
+    },
+
+    "re": {
+        "name": "regenerate"
+    },
+        
+    "qu": {
+        "name": "quantize"
+    },
+
+    "a": {
+        "name": "alias"
+    },
+
+    "tw": {
+        "name": "tweet"
+    },
+
+    "be": {
+        "name": "bend"
+    },
+
+    "bpm": {
+        "name": "bpm",
+        "output_type": "float",
+        "accepts": ["float", "integer"]
+    },
+
+    "device": {
+        "name": "device",
+        "output_type": "string",
+        "accepts": ["alphanumeric"]
+    },
+
+    "generator": {
+        "name": "generator",
+        "output_type": "string",
+        "accepts": ["alphanumeric"]
+    }
+
+}

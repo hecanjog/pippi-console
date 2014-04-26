@@ -19,7 +19,7 @@ def grid(tick, bpm):
         count += 1
 
 def render(play, voice_id, once, uno):
-    os.nice(19)
+    os.nice(10)
     current = mp.current_process()
 
     out = play(voice_id)
@@ -77,9 +77,6 @@ def out(generator, tick):
         full name.
         """
 
-    # Give this process a high priority to help prevent unwanted audio glitching
-    #os.nice(-19)
-
     voice_id = str(mp.current_process().name)
 
     # Spawn a render process which will write generator output
@@ -89,7 +86,7 @@ def out(generator, tick):
     r.join()
 
     # Open a connection to an ALSA PCM device
-    device = settings.param(voice_id, 'device')
+    device = settings.param(voice_id, 'device', 'default')
 
     try:
         out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, alsaaudio.PCM_NORMAL, device)

@@ -5,22 +5,9 @@ from dumptruck import DumpTruck
 import subprocess
 from pippic import types
 from pippi import dsp
+import pkgutil
 
-session_filename = 'pippi.session'
-default_session_name = os.getcwd().split(os.sep)[-1]
-default_config = {
-        "name": default_session_name,
-        "shortname": default_session_name[:3],
-        "session": "pippi.session",
-        "bpm": 80.0,
-        "a0": 27.5,
-        "root": "b",
-        "quality": "major",
-        "tune": "terry",
-        "orc": "orc/",
-        "sounds": "sounds/",
-        "snapshots": "snapshots/"
-    }
+session_filename = 'session.db'
 
 def init_config():
     """ Loads a pippi.json config file if exists at root of 
@@ -28,7 +15,7 @@ def init_config():
     with defaults.
     """
 
-    config_path = os.getcwd() + os.sep + 'pippi.json'
+    config_path = os.getcwd() + os.sep + 'pippi.config'
 
     try:
         # Load from existing config if present
@@ -36,11 +23,7 @@ def init_config():
             config = json.load(configfile)
 
     except IOError:
-        # Create new config from defaults
-        print 'Creating default config file...'
-        with open(config_path, 'wb') as configfile:
-            json.dump(default_config, configfile, indent=4, separators=(', ', ': '))
-            config = default_config
+        exit('No valid config file found')
 
     return config
 
@@ -60,9 +43,9 @@ def init_session():
         os.remove(session_filename)
     
     # Create new db from default schema
-    cmd = "sqlite3 %s < default.sql" % session_filename
-    with open(os.devnull, 'w') as dev_null:
-        subprocess.call(cmd, shell=True, stdout=dev_null)
+    #cmd = "sqlite3 %s < default.sql" % session_filename
+    #with open(os.devnull, 'w') as dev_null:
+    #    subprocess.call(cmd, shell=True, stdout=dev_null)
 
     # Populate config table with json data
     s = get_session()
@@ -71,6 +54,56 @@ def init_session():
 
     # Load types
     types.import_types()
+
+def new_session(dirname):
+    """ Creates a basic pippi session from scratch in a new directory.
+        
+        Structure:
+
+        dirname/            # From supplied name
+            readme.md       # Quick start instructions
+            orc/            # Dir for pippi generators
+                example.py  # Example generator
+            pippi.json      # Example config
+            .gitignore      # Example gitignore with common pippi settings
+
+    """
+
+    here = os.getcwd()
+
+    projdir = here + os.sep + dirname
+
+    if os.path.exists(projdir):
+        exit('Oops, that directory exists already.')
+
+    # Create the directory
+    os.mkdir(projdir)
+
+    # Drop in the default readme
+    with open(projdir + os.sep + 'readme.md', 'wb') as readme:
+        content = pkgutil.get_data('pippic', 'data/readme.md')
+        readme.write(content)
+
+    # Create orc directory for generators
+    os.mkdir(projdir + os.sep + 'orc')
+
+    # Add an example generator script
+    with open(projdir + os.sep + 'orc' + os.sep + 'example.py', 'wb') as generator:
+        content = pkgutil.get_data('pippic', 'data/orc_example.py')
+        generator.write(content)
+
+    # Create sounds directory for ...sounds
+    os.mkdir(projdir + os.sep + 'sounds')
+
+    # Create default config file
+    with open(projdir + os.sep + 'pippi.config', 'wb') as generator:
+        content = pkgutil.get_data('pippic', 'data/config.json')
+        generator.write(content)
+
+    # Add example .gitignore file
+    with open(projdir + os.sep + '.gitignore', 'wb') as gitignore:
+        content = pkgutil.get_data('pippic', 'data/gitignore.default')
+        gitignore.write(content)
 
 def import_generators(generators):
     s = get_session()
@@ -95,7 +128,11 @@ def config(key, value=None):
     else:
         # Get the value
         sql = "select value from config where name = ?"
-        value = s.execute(sql, (key,))[0]['value']
+        value = s.execute(sql, (key,))
+        if value == []:
+            return None
+        else:
+            value = value[0]['value']
 
     return value
 
@@ -340,6 +377,6 @@ def add_voice(cmds):
 
     return voice_id, generator[0]['value']
 
-def get_session():
+def get_session(session_filename='session.db'):
     return DumpTruck(session_filename)
 

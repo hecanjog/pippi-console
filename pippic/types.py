@@ -2,6 +2,7 @@ import re
 from pippi import dsp
 import os
 import json
+import pkgutil
 from dumptruck import DumpTruck
 
 patterns = {
@@ -22,26 +23,30 @@ patterns = {
         }
 
 def get_session():
-    return DumpTruck('pippi.session')
+    return DumpTruck('session.db')
 
 def import_types():
     # Load json config
     # Save types in session
-    config_path = os.getcwd() + os.sep + 'types.json'
+    config_path = os.getcwd() + os.sep
 
     try:
         # Load from existing config if present
-        with open(config_path, 'r+b') as configfile:
+        with open(config_path + 'types.json', 'r+b') as configfile:
             config = json.load(configfile)
 
     except IOError:
-        print 'Could not find types.json!'
-        return False
+        # Use global defaults
+        config = pkgutil.get_data('pippic', 'data/types.json')
+        config = json.loads(config)
+
+        print 'Using global types. Create a types.json to override'
 
     s = get_session()
 
     for shortname, type in config.iteritems():
         type['shortname'] = shortname
+        print type
         s.insert(type, 'types')
 
     return True
@@ -70,9 +75,6 @@ def get_type(shortname):
             }
     else:
         type = type[0]
-
-    if type['accepts'] is not None:
-        type['accepts'] = json.loads(type['accepts'])
 
     return type
 
