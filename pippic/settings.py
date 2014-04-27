@@ -152,12 +152,18 @@ def shared(key, value=None):
 
     return value
 
+def buffer(voice_id, value=None, buffers=None):
+    if buffers is None:
+        raise Exception('no buffers!')
 
-def buffer(voice_id, value=None):
+    bufname = 'buffer' + voice_id
+
     if value is not None:
-        dsp.write(value, 'cache/buf-%s' % voice_id)
+        # set the buffer
+        setattr(buffers, bufname, value)
     else:
-        value = dsp.read('cache/buf-%s.wav' % voice_id).data
+        # read and return the buffer
+        value = getattr(buffers, bufname)
 
     return value
 
@@ -329,10 +335,12 @@ def parse_cmd(cmd, voice_id=None):
     return param, param['shortname'] in vp
 
 
-def add_voice(cmds):
+def add_voice(cmds, current_id):
     s = get_session()
 
     generator, vparams, params = parse_cmds(cmds)
+
+    voice_id = current_id + 1
 
     def searchp(params, pname, default):
         for index, p in enumerate(params):
@@ -343,6 +351,7 @@ def add_voice(cmds):
 
     # Check for missing required params and insert defaults
     voice = {
+            'id': voice_id,
             'loop': True, 
             'regenerate': searchp(vparams, 're', False), 
             'once': searchp(vparams, 'once', False), 
@@ -350,10 +359,11 @@ def add_voice(cmds):
             'quantize': searchp(vparams, 'qu', False), 
             'target_volume': 1.0, 
             'post_volume': 1.0,
+            'plays': 0,
             'generator': generator[0]['cooked']
         }
 
-    voice_id = s.insert(voice, 'voices')
+    s.insert(voice, 'voices')
 
     for i, p in enumerate(params):
         params[i]['voice_id'] = voice_id

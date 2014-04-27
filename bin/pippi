@@ -48,6 +48,12 @@ class Pippi(cmd.Cmd):
         self.bpm = settings.config('bpm')
         self.root = settings.config('a0')
 
+        # Create shared namespace for buffers
+        self.buffers = mp.Manager().Namespace()
+
+        # Incrementing voice id
+        self.current_id = 0
+
         # Update sys.path to include generator orc/ directory
         self.orc_paths = json.loads(settings.config('orc'))
         sys.path += self.orc_paths
@@ -249,9 +255,9 @@ class Pippi(cmd.Cmd):
         cmds = cmd.strip().split(',')
 
         for cmd in cmds:
-            voice_id, generator_name = settings.add_voice(cmd)
+            voice_id, generator_name = settings.add_voice(cmd, self.current_id)
 
-            playback_process = mp.Process(name=voice_id, target=rt.out, args=(self.generators[generator_name], self.tick))
+            playback_process = mp.Process(name=voice_id, target=rt.out, args=(self.generators[generator_name], self.tick, self.buffers))
             playback_process.start()
 
     def do_EOF(self, line):

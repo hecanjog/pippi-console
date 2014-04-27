@@ -46,7 +46,6 @@ def import_types():
 
     for shortname, type in config.iteritems():
         type['shortname'] = shortname
-        print type
         s.insert(type, 'types')
 
     return True

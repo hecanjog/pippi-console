@@ -18,7 +18,7 @@ def grid(tick, bpm):
         dsp.delay(bpm)
         count += 1
 
-def render(play, voice_id, once, uno):
+def render(play, voice_id, once, uno, buffers):
     os.nice(10)
     current = mp.current_process()
 
@@ -27,22 +27,13 @@ def render(play, voice_id, once, uno):
     if once == True:
         settings.voice(voice_id, 'once', False)
 
-    settings.buffer(voice_id, out)
+    settings.buffer(voice_id, value=out, buffers=buffers)
 
 def dsp_loop(out, buffer, voice_id):
     os.nice(0)
 
     plays = int(settings.voice(voice_id, 'plays')) + 1
     settings.voice(voice_id, 'plays', plays)
-
-    gcount = int(settings.shared('count'))
-    maxgcount = int(settings.shared('maxcount'))
-    if maxgcount > 0 and gcount >= maxgcount:
-        gcount = 0
-    else:
-        gcount += 1
-
-    settings.shared('count', gcount)
 
     target_volume = settings.voice(voice_id, 'target_volume')
     post_volume   = settings.voice(voice_id, 'post_volume')
@@ -67,7 +58,7 @@ def dsp_loop(out, buffer, voice_id):
 
     settings.voice(voice_id, 'post_volume', post_volume)
 
-def out(generator, tick):
+def out(generator, tick, buffers):
     """ Master playback process spawned by play()
         Manages render and playback processes  
 
@@ -81,7 +72,7 @@ def out(generator, tick):
 
     # Spawn a render process which will write generator output
     # into the buffer for this voice
-    r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False))
+    r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False, buffers))
     r.start()
     r.join()
 
@@ -106,7 +97,7 @@ def out(generator, tick):
     volume              = 1.0
     next                = False
 
-    buffer = settings.buffer(voice_id)
+    buffer = settings.buffer(voice_id, buffers=buffers)
     while settings.voice(voice_id, 'loop') == True:
         regenerate    = settings.voice(voice_id, 'regenerate')
         once          = settings.voice(voice_id, 'once')
@@ -119,11 +110,11 @@ def out(generator, tick):
 
         if regenerate == True or once == True:
             reload(generator)
-            r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False))
+            r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False, buffers))
             try:
                 r.start()
                 r.join()
-                buffer = settings.buffer(voice_id)
+                buffer = settings.buffer(voice_id, buffers=buffers)
             except OSError:
                 dsp.log('failed to regenerate voice %s' % voice_id)
 

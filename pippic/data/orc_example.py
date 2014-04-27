@@ -31,7 +31,7 @@ def play(voice_id):
     freq = tune.ntf('a', octave=2)
 
     # Beep for a beat
-    out = dsp.tone('sine', length=beat, amp=volume, freq=freq)
+    out = dsp.tone(length=beat, freq=freq, wavetype='sine2pi', amp=volume)
 
     # Be silent for a beat after the beep
     out = dsp.pad(out, 0, beat)
