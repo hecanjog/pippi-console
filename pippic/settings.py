@@ -335,12 +335,10 @@ def parse_cmd(cmd, voice_id=None):
     return param, param['shortname'] in vp
 
 
-def add_voice(cmds, current_id):
+def add_voice(cmds, voice_id):
     s = get_session()
 
     generator, vparams, params = parse_cmds(cmds)
-
-    voice_id = current_id + 1
 
     def searchp(params, pname, default):
         for index, p in enumerate(params):

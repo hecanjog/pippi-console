@@ -255,6 +255,7 @@ class Pippi(cmd.Cmd):
         cmds = cmd.strip().split(',')
 
         for cmd in cmds:
+            self.current_id += 1
             voice_id, generator_name = settings.add_voice(cmd, self.current_id)
 
             playback_process = mp.Process(name=voice_id, target=rt.out, args=(self.generators[generator_name], self.tick, self.buffers))
