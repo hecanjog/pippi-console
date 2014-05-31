@@ -120,9 +120,6 @@ class Pippi(cmd.Cmd):
         except Exception, e:
             dsp.log(e)
 
-    def do_tp(self, cmd):
-        settings.get_params(1)
-
     def do_root(self, cmd):
         try:
             self.a0 = float(cmd)
@@ -132,21 +129,45 @@ class Pippi(cmd.Cmd):
         except Exception, e:
             dsp.log(e)
 
-    def do_u(self, cmd):
-        try:
-            cmds = cmd.split(' ')
-            voice_id = cmds.pop(0).strip()
+    def do_u(self, raw_cmd):
+        """ 
+Update a param for a single voice, 
+based on voice_id. Eg:
 
+    u 1 v:0.5 foobar
+
+Would update the value of the parm whose 
+shortname is 'v' to 0.5 - the default behavior 
+for this particular command is to map 'v' to 
+'volume' and coerce the value passed into a float - 
+as well as set the param 'foobar' to True.
+
+This and any other param type can be changed by 
+creating a types.conf file.
+
+Multiple voice ids may also be passed in the form:
+
+    u 1.2.5.100 v:0.5 foobar
+
+"""
+
+        try:
+            cmds = raw_cmd.split(' ')
+            voice_id = cmds.pop(0).strip()
             voice_list = re.match(r'^\d+(\.\d+)+$', voice_id)
+
+            cmds = ' '.join(cmds)
 
             if voice_list is not None:
                 voice_list = voice_id.split('.')
                 for voice_id in voice_list:
-                    self.update_param(voice_id, cmds=cmds)
-                    self.update_param(voice_id, 'once', True)
+                    settings.set_params_by_cmds(voice_id, cmds)
+                    settings.set_param(voice_id, 'once', True)
+
             else:
-                self.update_param(voice_id, cmds=cmds)
-                self.update_param(voice_id, 'once', True)
+                settings.set_params_by_cmds(voice_id, cmds)
+                settings.set_param(voice_id, 'once', True)
+
         except Exception, e:
             dsp.log(e)
 
@@ -217,7 +238,11 @@ class Pippi(cmd.Cmd):
                 if value == 'F':
                     value = False
 
-                settings.param(voice_id, cmd[0], value)
+                if value == 'D':
+                    value = None
+
+                settings.param(voice_id, key=cmd[0], value=value)
+
         elif param is not None and value is not None:
            settings.param(voice_id, param, value)
 
@@ -256,6 +281,7 @@ class Pippi(cmd.Cmd):
 
         for cmd in cmds:
             self.current_id += 1
+            
             voice_id, generator_name = settings.add_voice(cmd, self.current_id)
 
             playback_process = mp.Process(name=voice_id, target=rt.out, args=(self.generators[generator_name], self.tick, self.buffers))

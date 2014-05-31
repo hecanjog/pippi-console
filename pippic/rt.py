@@ -76,19 +76,23 @@ def out(generator, tick, buffers):
     r.start()
     r.join()
 
+    def openpcm(device):
+        try:
+            out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, alsaaudio.PCM_NORMAL, device)
+        except:
+            print 'Could not open an ALSA connection.'
+            return False
+
+        out.setchannels(2)
+        out.setrate(44100)
+        out.setformat(alsaaudio.PCM_FORMAT_S16_LE)
+        out.setperiodsize(10)
+
+        return out
+
     # Open a connection to an ALSA PCM device
-    device = settings.param(voice_id, 'device', 'default')
-
-    try:
-        out = alsaaudio.PCM(alsaaudio.PCM_PLAYBACK, alsaaudio.PCM_NORMAL, device)
-    except:
-        print 'Could not open an ALSA connection.'
-        return False
-
-    out.setchannels(2)
-    out.setrate(44100)
-    out.setformat(alsaaudio.PCM_FORMAT_S16_LE)
-    out.setperiodsize(10)
+    device = getattr(generator, 'device', 'default')
+    out = openpcm(device)
 
     # On start of playback, check to see if we should be regenerating 
     # the sound. If so, spawn a new render thread.
@@ -106,10 +110,13 @@ def out(generator, tick, buffers):
         target_volume = settings.voice(voice_id, 'target_volume')
 
         if uno == True:
-            settings.param(voice_id, 'loop', False)
+            settings.voice(voice_id, 'loop', False)
 
         if regenerate == True or once == True:
             reload(generator)
+            device = getattr(generator, 'device', 'default')
+            out = openpcm(device)
+
             r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False, buffers))
             try:
                 r.start()

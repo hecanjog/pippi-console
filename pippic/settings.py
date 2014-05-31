@@ -168,44 +168,74 @@ def buffer(voice_id, value=None, buffers=None):
     return value
 
 def get_param(voice_id, key, default=None):
+    s = get_session()
+
+    sql = "select output_type, cooked from params where name = ? or shortname = ? and voice_id = ?"
+
     try:
-        return param(voice_id, key)
+        raw_value = s.execute(sql, (key, key, voice_id))[0]
+        value = raw_value['cooked']
+
+        if value is None or value == 'None':
+            return default
+
     except IndexError:
         return default
 
-def param(voice_id, key, value=None, gen=None, default=None):
-    s = get_session()
+    # TODO should be done in types.py
+    if raw_value['output_type'] == 'integer':
+        value = int(value)
 
-    if voice_id == 'all' and gen is None:
-        sql = "update params set value = ? where name = ?"
-        s.execute(sql, (value, key))
-
-        return value
-
-    elif voice_id == 'all' and gen is not None:
-        sql = "update params set value = ? where name = ? and generator = ?"
-        s.execute(sql, (value, key, gen))
-
-        return value
-
-    if value is not None:
-        # Set the value
-        sql = "update params set value = ? where name = ? and voice_id = ?"
-        s.execute(sql, (value, key, voice_id))
-    else:
-        # Get the value
-        sql = "select output_type, value from params where name = ? and voice_id = ?"
-        p = s.execute(sql, (key, voice_id))[0]
-
-        value = p['value']
-
-        if p['output_type'] == 'integer':
-            value = int(value)
-
-        elif p['output_type'] == 'float':
-            value = float(value)
+    elif raw_value['output_type'] == 'float':
+        value = float(value)
 
     return value
+
+def set_params_by_cmds(voice_id, cmds):
+    params = parse_cmds(cmds)
+
+    for param in params:
+        set_param(voice_id, param['name'], param['value'])
+
+def set_param(voice_id, key, value):
+    s = get_session()
+
+    value = convert_special_values(value)
+
+    sql = "update params set cooked = ?, value = ? where name = ? or shortname = ? and voice_id = ?"
+    s.execute(sql, (value, value, key, key, voice_id))
+
+    return value
+
+def set_param_by_generator(generator, key, value):
+    s = get_session()
+
+    value = convert_special_values(value)
+
+    sql = "update params set value = ? where name = ? and generator = ?"
+    s.execute(sql, (value, key, generator))
+
+    return value
+
+def set_all_params(key, value):
+    s = get_session()
+
+    value = convert_special_values(value)
+
+    sql = "update params set value = ? where name = ?"
+    s.execute(sql, (value, key))
+
+    return value
+
+def convert_special_values(value):
+    if value == 'F':
+        return False
+
+    if value == 'T':
+        return True
+
+    if value == 'D':
+        return None
 
 def get_all_params():
     voices = get_voices()
@@ -300,12 +330,21 @@ def parse_cmd(cmd, voice_id=None):
 
     name = type['name']
     accepts = type['accepts']
-    output_type = type['output_type']
+    try:
+        output_type = type['output_type']
+    except KeyError:
+        output_type = 'string'
 
     value = cmd[1] if len(cmd) == 2 else True
 
     if value == 'F':
         value = False
+
+    if value == 'T':
+        value = True
+
+    if value == 'D':
+        value = None
 
     if name == 'generator':
         value = type['generator_shortname']
