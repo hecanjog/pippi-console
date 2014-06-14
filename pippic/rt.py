@@ -18,7 +18,7 @@ def grid(tick, bpm):
         dsp.delay(bpm)
         count += 1
 
-def render(play, voice_id, once, uno, buffers):
+def render(play, voice_id, once, uno, bufs):
     os.nice(10)
     current = mp.current_process()
 
@@ -27,9 +27,9 @@ def render(play, voice_id, once, uno, buffers):
     if once == True:
         settings.voice(voice_id, 'once', False)
 
-    settings.buffer(voice_id, value=out, buffers=buffers)
+    settings.buf(voice_id, value=out, bufs=bufs)
 
-def dsp_loop(out, buffer, voice_id):
+def dsp_loop(out, buf, voice_id):
     os.nice(0)
 
     plays = int(settings.voice(voice_id, 'plays')) + 1
@@ -38,9 +38,9 @@ def dsp_loop(out, buffer, voice_id):
     target_volume = settings.voice(voice_id, 'target_volume')
     post_volume   = settings.voice(voice_id, 'post_volume')
 
-    buffer = dsp.split(buffer, 500)
+    buf = dsp.split(buf, 500)
 
-    for chunk in buffer:
+    for chunk in buf:
         if target_volume != post_volume:
             if target_volume > post_volume:
                 post_volume += 0.01
@@ -58,7 +58,7 @@ def dsp_loop(out, buffer, voice_id):
 
     settings.voice(voice_id, 'post_volume', post_volume)
 
-def out(generator, tick, buffers):
+def out(generator, tick, bufs):
     """ Master playback process spawned by play()
         Manages render and playback processes  
 
@@ -71,8 +71,8 @@ def out(generator, tick, buffers):
     voice_id = str(mp.current_process().name)
 
     # Spawn a render process which will write generator output
-    # into the buffer for this voice
-    r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False, buffers))
+    # into the buf for this voice
+    r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False, bufs))
     r.start()
     r.join()
 
@@ -101,7 +101,7 @@ def out(generator, tick, buffers):
     volume              = 1.0
     next                = False
 
-    buffer = settings.buffer(voice_id, buffers=buffers)
+    buf = settings.buf(voice_id, bufs=bufs)
     while settings.voice(voice_id, 'loop') == True:
         regenerate    = settings.voice(voice_id, 'regenerate')
         once          = settings.voice(voice_id, 'once')
@@ -117,18 +117,18 @@ def out(generator, tick, buffers):
             device = getattr(generator, 'device', 'default')
             out = openpcm(device)
 
-            r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False, buffers))
+            r = mp.Process(name='r' + str(voice_id), target=render, args=(generator.play, voice_id, False, False, bufs))
             try:
                 r.start()
                 r.join()
-                buffer = settings.buffer(voice_id, buffers=buffers)
+                buf = settings.buf(voice_id, bufs=bufs)
             except OSError:
                 dsp.log('failed to regenerate voice %s' % voice_id)
 
         if quantize != False:
             tick.wait()
 
-        dsp_loop(out, buffer, voice_id)
+        dsp_loop(out, buf, voice_id)
 
     settings.remove_voice(voice_id)
 

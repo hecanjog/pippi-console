@@ -152,18 +152,18 @@ def shared(key, value=None):
 
     return value
 
-def buffer(voice_id, value=None, buffers=None):
-    if buffers is None:
-        raise Exception('no buffers!')
+def buf(voice_id, value=None, bufs=None):
+    if bufs is None:
+        raise Exception('no bufs!')
 
-    bufname = 'buffer' + voice_id
+    bufname = 'buf' + voice_id
 
     if value is not None:
-        # set the buffer
-        setattr(buffers, bufname, value)
+        # set the buf
+        setattr(bufs, bufname, value)
     else:
-        # read and return the buffer
-        value = getattr(buffers, bufname)
+        # read and return the buf
+        value = getattr(bufs, bufname)
 
     return value
 
@@ -195,7 +195,8 @@ def set_params_by_cmds(voice_id, cmds):
     params = parse_cmds(cmds)
 
     for param in params:
-        set_param(voice_id, param['name'], param['value'])
+        if param != []:
+            set_param(voice_id, param['name'], param['cooked'])
 
 def set_param(voice_id, key, value):
     s = get_session()

@@ -45,9 +45,6 @@ class Pippi(cmd.Cmd):
         # Load config from file and populate current session
         settings.init_session()
 
-        self.bpm = settings.config('bpm')
-        self.root = settings.config('a0')
-
         # Create shared namespace for buffers
         self.buffers = mp.Manager().Namespace()
 
@@ -60,7 +57,7 @@ class Pippi(cmd.Cmd):
 
         # Start rhythm grid tick process
         self.tick = mp.Event()
-        self.grid = mp.Process(name='grid', target=rt.grid, args=(self.tick, self.bpm))
+        self.grid = mp.Process(name='grid', target=rt.grid, args=(self.tick, settings.config('bpm')))
         self.grid.start()
 
         sys.path += ['bots/']
@@ -109,25 +106,22 @@ class Pippi(cmd.Cmd):
             # Recursive update of all running voices by default
                 # Only update master if 'master' param passed
             self.grid.terminate()
-            self.bpm = float(cmd)
-            settings.config('bpm', self.bpm)
+            bpm = float(cmd)
+            settings.config('bpm', bpm)
 
-            self.grid = mp.Process(name='grid', target=rt.grid, args=(self.tick, self.bpm))
+            self.grid = mp.Process(name='grid', target=rt.grid, args=(self.tick, bpm))
             self.grid.start()
 
-            settings.param('all', 'bpm', self.bpm)
+            settings.param('all', 'bpm', bpm)
  
         except Exception, e:
             dsp.log(e)
 
     def do_root(self, cmd):
-        try:
-            self.a0 = float(cmd)
+        settings.config('a0', float(cmd))
 
-            settings.param('all', 'a0', self.a0)
-
-        except Exception, e:
-            dsp.log(e)
+    def do_key(self, cmd):
+        settings.config('key', cmd)
 
     def do_u(self, raw_cmd):
         """ 
