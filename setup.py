@@ -22,6 +22,7 @@ setup(name='pippic',
             'data/orc_example.py', 
             'data/readme.md',
             'data/gitignore.default',
+            'data/config.json'
         ]},
 
         install_requires=['pippi', 'termcolor', 'docopt', 'dumptruck'],

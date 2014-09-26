@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 from pprint import pprint
 from dumptruck import DumpTruck
 import subprocess
@@ -16,6 +17,9 @@ def init_config():
     """
 
     config_path = os.getcwd() + os.sep + 'pippi.config'
+    default_config_path = os.getcwd() + os.sep + 'data' + 'config.json'
+    if not os.path.isfile(config_path):
+        shutil.copy2(default_config_path, config_path)	
 
     try:
         # Load from existing config if present
