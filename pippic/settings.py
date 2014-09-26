@@ -27,8 +27,8 @@ def init_config():
             config = json.load(configfile)
 
     except IOError:
-	exit('No valid config file found')
-	
+        exit('No valid config file found')
+
     return config
 
 def init_session():
